@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,11 +38,14 @@
             margin-top: 20px;
         }
 
-        table, th, td {
+        table,
+        th,
+        td {
             border: 1px solid #ccc;
         }
 
-        th, td {
+        th,
+        td {
             padding: 10px;
             text-align: center;
         }
@@ -53,17 +57,14 @@
         }
     </style>
 </head>
+
 <body>
 
     <h1>CRUD Flask + PostgreSQL</h1>
 
     <!-- PESQUISA -->
     <form action="/registros" method="GET">
-        <input
-            type="text"
-            name="q"
-            placeholder="Pesquisar por ID ou Registro"
-        >
+        <input type="text" name="q" placeholder="Pesquisar por ID ou Registro">
 
         <button type="submit">
             Pesquisar
@@ -83,26 +84,11 @@
 
     <form action="/registros/cadastrar" method="POST">
 
-        <input
-            type="text"
-            name="registro"
-            placeholder="Registro"
-            required
-        >
+        <input type="text" name="registro" placeholder="Registro" required>
 
-        <input
-            type="text"
-            name="nome_contato"
-            placeholder="Nome de Contato"
-            required
-        >
+        <input type="text" name="nome_contato" placeholder="Nome de Contato" required>
 
-        <input
-            type="text"
-            name="telefone_contato"
-            placeholder="Telefone de Contato"
-            required
-        >
+        <input type="text" name="telefone_contato" placeholder="Telefone de Contato" required>
 
         <button type="submit">
             Cadastrar
@@ -141,37 +127,15 @@
                     <div class="acoes">
 
                         <!-- ATUALIZAR -->
-                        <form
-                            action="/registros/atualizar"
-                            method="POST"
-                        >
+                        <form action="/registros/atualizar" method="POST">
 
-                            <input
-                                type="hidden"
-                                name="id"
-                                value="{{ registro[0] }}"
-                            >
+                            <input type="hidden" name="id" value="{{ registro[0] }}">
 
-                            <input
-                                type="text"
-                                name="nome_contato"
-                                value="{{ registro[1] }}"
-                                required
-                            >
+                            <input type="text" name="nome_contato" value="{{ registro[1] }}" required>
 
-                            <input
-                                type="text"
-                                name="nome_contato"
-                                value="{{ registro[2] }}"
-                                required
-                            >
+                            <input type="text" name="nome_contato" value="{{ registro[2] }}" required>
 
-                            <input
-                                type="text"
-                                name="telefone_contato"
-                                value="{{ registro[3] }}"
-                                required
-                            >
+                            <input type="text" name="telefone_contato" value="{{ registro[3] }}" required>
 
                             <button type="submit">
                                 Atualizar
@@ -180,16 +144,9 @@
                         </form>
 
                         <!-- DELETAR -->
-                        <form
-                            action="/registros/deletar"
-                            method="POST"
-                        >
+                        <form action="/registros/deletar" method="POST">
 
-                            <input
-                                type="hidden"
-                                name="id"
-                                value="{{ registro[0] }}"
-                            >
+                            <input type="hidden" name="id" value="{{ registro[0] }}">
 
                             <button type="submit">
                                 Deletar
@@ -210,4 +167,5 @@
     </table>
 
 </body>
+
 </html>

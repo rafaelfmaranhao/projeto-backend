@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD Flask PostgreSQL</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 8px;
+            margin-right: 5px;
+        }
+
+        button {
+            padding: 8px 14px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        .acoes {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>CRUD Flask + PostgreSQL</h1>
+
+    <!-- PESQUISA -->
+    <form action="/registros" method="GET">
+        <input
+            type="text"
+            name="q"
+            placeholder="Pesquisar por ID ou Registro"
+        >
+
+        <button type="submit">
+            Pesquisar
+        </button>
+
+        <a href="/">
+            <button type="button">
+                Limpar
+            </button>
+        </a>
+    </form>
+
+    <hr>
+
+    <!-- CADASTRO -->
+    <h2>Cadastrar Registro</h2>
+
+    <form action="/registros/cadastrar" method="POST">
+
+        <input
+            type="text"
+            name="registro"
+            placeholder="Registro"
+            required
+        >
+
+        <input
+            type="text"
+            name="nome_contato"
+            placeholder="Nome de Contato"
+            required
+        >
+
+        <input
+            type="text"
+            name="telefone_contato"
+            placeholder="Telefone de Contato"
+            required
+        >
+
+        <button type="submit">
+            Cadastrar
+        </button>
+
+    </form>
+
+    <hr>
+
+    <!-- TABELA -->
+    <h2>Registros</h2>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Telefone</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            {% for registro in resultDB %}
+
+            <tr>
+
+                <td>{{ registro[0] }}</td>
+                <td>{{ registro[1] }}</td>
+                <td>{{ registro[2] }}</td>
+
+                <td>
+
+                    <div class="acoes">
+
+                        <!-- ATUALIZAR -->
+                        <form
+                            action="/registros/atualizar"
+                            method="POST"
+                        >
+
+                            <input
+                                type="hidden"
+                                name="id"
+                                value="{{ registro[0] }}"
+                            >
+
+                            <input
+                                type="text"
+                                name="nome_contato"
+                                value="{{ registro[1] }}"
+                                required
+                            >
+
+                            <input
+                                type="text"
+                                name="nome_contato"
+                                value="{{ registro[2] }}"
+                                required
+                            >
+
+                            <input
+                                type="text"
+                                name="telefone_contato"
+                                value="{{ registro[3] }}"
+                                required
+                            >
+
+                            <button type="submit">
+                                Atualizar
+                            </button>
+
+                        </form>
+
+                        <!-- DELETAR -->
+                        <form
+                            action="/registros/deletar"
+                            method="POST"
+                        >
+
+                            <input
+                                type="hidden"
+                                name="id"
+                                value="{{ registro[0] }}"
+                            >
+
+                            <button type="submit">
+                                Deletar
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</body>
+</html>

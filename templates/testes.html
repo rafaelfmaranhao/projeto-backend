@@ -4,24 +4,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRUD Flask PostgreSQL</title>
+    <title></title>
 
     <style>
         body {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
             font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 40px auto;
-            padding: 20px;
         }
-
-        h1 {
-            margin-bottom: 10px;
+        .header-titulo{
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            background: #1F6F5F;
         }
-
-        form {
-            margin-bottom: 20px;
+        .header-titulo h1{
+            font-size: 20px;
+            color: aliceblue;
+            padding: 10px;
         }
-
+        .form-search{
+            display: flex;
+            gap: 10px;
+        }
+        .form-search input{
+            border: none;
+            border-radius: 5px;
+            outline: none;
+        }
         input {
             padding: 8px;
             margin-right: 5px;
@@ -59,25 +70,28 @@
 </head>
 
 <body>
+    <header class="header-titulo">
+        <h1>
+            Eco-Sistem
+        </h1>
+        <section class="-barra-form-search-">
+            <form action="/registros" method="GET" class="form-search">
+                <input type="text" name="q" placeholder="Pesquisar por ID ou Registro">
 
-    <h1>CRUD Flask + PostgreSQL</h1>
+                <button type="submit">
+                    Pesquisar
+                </button>
 
-    <!-- PESQUISA -->
-    <form action="/registros" method="GET">
-        <input type="text" name="q" placeholder="Pesquisar por ID ou Registro">
-
-        <button type="submit">
-            Pesquisar
-        </button>
-
-        <a href="/">
-            <button type="button">
-                Limpar
-            </button>
-        </a>
-    </form>
-
-    <hr>
+                <a href="/">
+                    <button type="button">
+                        Limpar
+                    </button>
+            </a>
+            </form>
+        </section>
+    </header>
+    <main>
+        
 
     <!-- CADASTRO -->
     <h2>Cadastrar Registro</h2>
@@ -165,6 +179,12 @@
         </tbody>
 
     </table>
+    </main>
+    <footer>
+        Eco-System
+    </footer>
+    <!-- PESQUISA -->
+    
 
 </body>
 

@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import pymysql
 from flask_jwt_extended import JWTManager, create_access_token
-from werkzeug.security import check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 import datetime 
 import os
 from dotenv import load_dotenv
@@ -16,7 +16,6 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(hours=2)
 jwt = JWTManager(app)
 
 
-
 def connectDB():
     return pymysql.connect(
         host=os.getenv('DB_HOST'),
@@ -27,7 +26,7 @@ def connectDB():
 
 def executeSQL(sql, params=None, fetch=False):
     db = connectDB()
-    cursor = db.cursor()
+    cursor = db.cursor(dictionary=True)
 
     resultado = cursor.execute(sql, params)
 
@@ -35,7 +34,6 @@ def executeSQL(sql, params=None, fetch=False):
         resultado = cursor.fetchall()
 
     db.commit()
-
     cursor.close()
     db.close()
 
@@ -44,72 +42,95 @@ def executeSQL(sql, params=None, fetch=False):
 
 @app.route('/login', methods=['POST'])
 def login():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON inválido'
-        }), 400
-
-    email = dados.get('email')
-    senha = dados.get('senha')
-
-    if not email or not senha:
-        return jsonify({
-            'success': False,
-            'message': 'Email e senha são obrigatórios'
-        }), 400
 
     try:
+        dados = request.get_json()
+
+        if not dados:
+            return jsonify({
+                'success': False,
+                'message': 'JSON inválido'
+            }), 400
+
+        email = dados['email']
+        senha = dados['senha']
+
+        if not email or not senha:
+            return jsonify({
+                'success': False,
+                'message': 'Email e senha são obrigatórios'
+            }), 400
+
         db = connectDB()
-        cursor = db.cursor()
+        cursor = db.cursor(dictionary=True)
 
         sql = """
-            SELECT id, nome, email, cargo
+            SELECT id, nome, email, senha_hash, cargo
             FROM usuarios
-            WHERE email = %s AND senha = %s
+            WHERE email = %s;
         """
 
-        cursor.execute(sql, (email, senha))
+        cursor.execute(sql, (email,))
         usuario = cursor.fetchone()
+
+        cursor.close()
         db.close()
 
-        if usuario:
-            payload = {
-                'id': usuario[0],
-                'email': usuario[2],
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=12)
+        if not usuario:
+            return jsonify({
+                'success': False,
+                'message': 'Email ou senha inválidos'
+            }), 401
+
+        senha_correta = check_password_hash(
+            usuario['senha_hash'],
+            senha
+        )
+
+        if not senha_correta:
+            return jsonify({
+                'success': False,
+                'message': 'Email ou senha inválidos'
+            }), 401
+
+        token = create_access_token(
+            identity=str(usuario['id']),
+            additional_claims={
+                'cargo': usuario['cargo']
+            }
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Login realizado com sucesso',
+
+            'token': token,
+
+            'usuario': {
+                'id': usuario['id'],
+                'nome': usuario['nome'],
+                'email': usuario['email'],
+                'cargo': usuario['cargo']
             }
 
-            token = jwt.encode(
-                payload,
-                SECRET_KEY,
-                algorithm='HS256'
-            )
+        }), 200
 
-            return jsonify({
-                'success': True,
-                'token': token,
-                'usuario': {
-                    'id': usuario[0],
-                    'nome': usuario[1],
-                    'email': usuario[2],
-                    'cargo': usuario[3]
-                }
-            }), 200
-
+    except Exception as err:
         return jsonify({
             'success': False,
-            'message': 'Email ou senha inválidos'
-        }), 401
-
-    except Exception as e:
-
-        return jsonify({
-            'success': False,
-            'message': str(e)
+            'message': str(err)
         }), 500
+
+@app.route('/cadastro')
+def cadastrar():
+    try:
+        dados = request.get_json()
+
+    except Exception as err:
+        return jsonify({
+            'success': False,
+            'message': str(err)
+        })
 
 
 
@@ -129,7 +150,7 @@ def cad_registro():
 
     return jsonify({
         'success': True,
-
+        'message': 'Cadastrado com sucesso.'
     })
 
 
@@ -144,11 +165,11 @@ def pesq_registro():
     '''
     resultado = executeSQL(sql, (pesquisa, f'%{pesquisa}%'), fetch=True)
 
-    return render_template('index.html', resultDB=resultado)
+    return ''
 
 @app.route('/registros/<int:id>')
 def pag_registro(id):
-    return render_template('registro.html', id=id)
+    return ''
 
 
 @app.route('/registros/atualizar', methods=['PUT'])
@@ -167,7 +188,7 @@ def att_registro():
     '''
     executeSQL(sql, (nome, telefone, id))
 
-    return redirect('/')
+    return ''
 
 
 @app.route('/registros/deletar', methods=['DELETE'])
@@ -179,7 +200,7 @@ def del_registro():
     sql = 'DELETE FROM registros WHERE id = %s'
     executeSQL(sql, (id))
 
-    return redirect('/')
+    return ''
 
 
 # Leituras
@@ -197,7 +218,7 @@ def cad_leitura(registro_id):
     '''
     executeSQL(sql, (leitura, data_leitura, registro_id))
 
-    return redirect(f'/registro/{registro_id}')
+    return ''
 
 
 @app.route('/leituras/atualizar', methods=['PUT'])
@@ -216,7 +237,7 @@ def att_leitura():
     '''
     executeSQL(sql, (nome, telefone, id))
 
-    return redirect('/')
+    return ''
 
 
 @app.route('/registros/deletar', methods=['DELETE'])
@@ -228,7 +249,7 @@ def del_registro():
     sql = 'DELETE FROM registros WHERE id = %s'
     executeSQL(sql, (id))
 
-    return redirect('/')
+    return ''
 
 
 if __name__ == '__main__':

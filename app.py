@@ -4,11 +4,13 @@ from flask_jwt_extended import JWTManager, create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 app = Flask(__name__)
+CORS(app)
 app.config['JWT_SECRET_KEY'] = SECRET_KEY
 
 jwt = JWTManager(app)
@@ -147,7 +149,7 @@ def cadastrar():
             FROM usuarios
             WHERE email = %s
         '''
-        cursor.execute(sql, (email))
+        cursor.execute(sql, (email,))
         verifica_email = cursor.fetchone()
 
         if verifica_email:

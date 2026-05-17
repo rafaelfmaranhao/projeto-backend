@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 import pymysql
 from flask_jwt_extended import JWTManager, create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
-import datetime 
 import os
 from dotenv import load_dotenv
 
@@ -11,7 +10,6 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = SECRET_KEY
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(hours=2)
 
 jwt = JWTManager(app)
 
@@ -24,14 +22,16 @@ def connectDB():
         password=os.getenv('DB_PASSWORD')
     )
 
-def executeSQL(sql, params=None, fetch=False):
+def executeSQL(sql, params=None, fetch=None):
     db = connectDB()
-    cursor = db.cursor(dictionary=True)
+    cursor = db.cursor()
 
     resultado = cursor.execute(sql, params)
 
-    if fetch:
+    if fetch == 'all':
         resultado = cursor.fetchall()
+    elif fetch == 'one':
+        resultado = cursor.fetchone()
 
     db.commit()
     cursor.close()
@@ -40,6 +40,7 @@ def executeSQL(sql, params=None, fetch=False):
     return resultado
 
 
+#################### Auth ####################
 @app.route('/login', methods=['POST'])
 def login():
 
@@ -52,8 +53,8 @@ def login():
                 'message': 'JSON inválido'
             }), 400
 
-        email = dados['email']
-        senha = dados['senha']
+        email = dados.get('email')
+        senha = dados.get('senha')
 
         if not email or not senha:
             return jsonify({
@@ -61,20 +62,13 @@ def login():
                 'message': 'Email e senha são obrigatórios'
             }), 400
 
-        db = connectDB()
-        cursor = db.cursor()
-
         sql = """
             SELECT id, nome, email, senha_hash
             FROM usuarios
             WHERE email = %s;
         """
 
-        cursor.execute(sql, (email,))
-        usuario = cursor.fetchone()
-
-        cursor.close()
-        db.close()
+        usuario = executeSQL(sql, (email), fetch='one')
 
         if not usuario:
             return jsonify({
@@ -92,8 +86,6 @@ def login():
                 'success': False,
                 'message': 'Email ou senha inválidos'
             }), 401
-        
-
 
         token = create_access_token(
             identity=str(usuario[0])
@@ -118,6 +110,7 @@ def login():
             'success': False,
             'message': str(err)
         }), 500
+
 
 @app.route('/cadastro', methods=['POST'])
 def cadastrar():
@@ -181,7 +174,7 @@ def cadastrar():
 
         return jsonify({
             'success': True,
-            'message': 'Usuário cadastrado com sucesso.'
+            'message': 'Usuário cadastrado com sucesso'
         })
 
     except Exception as err:
@@ -189,22 +182,159 @@ def cadastrar():
             'success': False,
             'message': str(err)
         })
+    
 
+#################### Imóveis ####################
+@app.route('/imoveis', methods=['GET'])
+def pesq_imovel():
+    usuario_id = request.args.get('usuario_id')
+    pesquisa = request.args.get('q', '')
+
+    resultado = None
+
+    if pesquisa == '':
+        sql = '''
+            SELECT id, nome 
+            FROM imoveis
+            WHERE fk_usuarios_id = '%s'
+        '''
+        resultado = executeSQL(sql, (usuario_id), fetch='all')
+    
+    else:
+        sql = '''
+            SELECT id, nome 
+            FROM imoveis
+            WHERE fk_usuarios_id = %s
+            AND id = %s
+            OR nome = %s
+        '''
+        resultado = executeSQL(sql, (usuario_id, pesquisa, f'%{pesquisa}%'), fetch='all')
+
+    return jsonify(resultado)
+
+
+@app.route('/imoveis/cadastrar', methods=['POST'])
+def cad_imovel():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        })
+
+    nome = dados.get('nome')
+    fk_usuarios_id = dados.get('fk_usuarios_id')
+
+    sql = '''
+        INSERT INTO imoveis (nome, fk_usuarios_id)
+        VALUES (%s, %s);
+    '''
+    executeSQL(sql, (nome, fk_usuarios_id))
+
+    return jsonify({
+        'success': True,
+        'message': 'Cadastrado com sucesso',
+        'imoveis_id': ''
+    })
+
+
+@app.route('/imoveis/atualizar', methods=['PUT'])
+def att_imovel():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        })
+
+    id = dados.get('id')
+    nome = dados.get('nome')
+
+    sql = '''
+        UPDATE imoveis
+        SET nome = %s
+        WHERE id = %s
+    '''
+    executeSQL(sql, (nome, id))
+
+    return jsonify({
+        'success': True,
+        'message': 'Atualizado com sucesso'
+    })
+
+
+@app.route('/imoveis/deletar', methods=['DELETE'])
+def del_imovel():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        })
+
+    id = dados.get('id')
+
+    sql = 'DELETE FROM imoveis WHERE id = %s'
+    executeSQL(sql, (id))
+
+    return jsonify({
+        'success': True,
+        'message': 'Deletado com sucesso.'
+    })
+
+
+#################### Medidores ####################
+@app.route('/medidores', methods=['GET'])
+def pesq_medidor():
+    imoveis_id = request.args.get('id')
+    pesquisa = request.args.get('q', '')
+
+    resultado = None
+
+    if pesquisa == '':
+        sql = '''
+            SELECT id, unidade, identificador, tipo
+            FROM medidores
+            WHERE fk_imoveis_id = %s
+        '''
+        resultado = executeSQL(sql, (imoveis_id), fetch='all')
+
+    else:
+        sql = '''
+            SELECT id, unidade, identificador, tipo
+            FROM medidores
+            WHERE fk_imoveis_id = %s
+            AND unidade = %s
+            OR identificador = %s
+        '''
+        resultado = executeSQL(sql, (imoveis_id, pesquisa, f'%{pesquisa}%'), fetch='all')
+
+    return jsonify(resultado)
 
 
 @app.route('/medidores/cadastrar', methods=['POST'])
 def cad_medidor():
     dados = request.get_json()
 
-    medidor = dados['medidor']
-    nome = dados['nome_contato']
-    telefone = dados['telefone_contato']
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        })
+
+    unidade = dados.get('unidade')
+    identificador = dados.get('identificador')
+    tipo = dados.get('tipo')
+    fk_imoveis_id = dados.get('fk_imoveis_id')
 
     sql = '''
-        INSERT INTO medidores (medidor, nome_contato, telefone_contato)
-        VALUES (%s, %s, %s)
+        INSERT INTO medidores (unidade, identificador, tipo, fk_imoveis_id)
+        VALUES (%s, %s, %s, %s)
     '''
-    executeSQL(sql, (medidor, nome, telefone))
+    executeSQL(sql, (unidade, identificador, tipo, fk_imoveis_id))
 
     return jsonify({
         'success': True,
@@ -212,63 +342,97 @@ def cad_medidor():
     })
 
 
-@app.route('/medidores', methods=['GET'])
-def pesq_medidor():
-    pesquisa = request.args.get('q', '')
-
-    sql = '''
-        SELECT * FROM medidores
-        WHERE CAST(id AS TEXT) = %s
-        OR medidor ILIKE %s
-    '''
-    resultado = executeSQL(sql, (pesquisa, f'%{pesquisa}%'), fetch=True)
-
-    return ''
-
-@app.route('/medidores/<int:id>')
-def pag_medidor(id):
-    return ''
-
-
 @app.route('/medidores/atualizar', methods=['PUT'])
 def att_medidor():
     dados = request.get_json()
 
-    id = dados['id']
-    nome = dados['nome']
-    telefone = dados['telefone']
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        })
+
+    id = dados.get('id')
+    unidade = dados.get('unidade')
+    identificador = dados.get('identificador')
 
     sql = '''
         UPDATE medidores
-        SET nome = %s,
-            telefone = %s
+        SET unidade = %s,
+            identificador = %s
         WHERE id = %s
     '''
-    executeSQL(sql, (nome, telefone, id))
+    executeSQL(sql, (unidade, identificador, id))
 
-    return ''
+    return jsonify({
+        'success': True,
+        'message': 'Atualizado com sucesso.'
+    })
 
 
 @app.route('/medidores/deletar', methods=['DELETE'])
 def del_medidor():
     dados = request.get_json()
 
-    id = dados['id']
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        })
+
+    id = dados.get('id')
 
     sql = 'DELETE FROM medidores WHERE id = %s'
     executeSQL(sql, (id))
 
-    return ''
+    return jsonify({
+        'success': True,
+        'message': 'Deletado com sucesso.'
+    })
 
 
-# Leituras
-@app.route('/leituras/<int:medidor_id>')
-def cad_leitura(medidor_id):
+#################### Leituras ####################
+@app.route('/leituras', methods=['GET'])
+def pesq_leitura():
+    medidor_id = request.args.get('id')
+    pesquisa = request.args.get('q', '')
+
+    resultado = None
+
+    if pesquisa == '':
+        sql = '''
+            SELECT id, leitura, data_leitura
+            FROM leituras
+            WHERE fk_medidor_id = %s
+        '''
+        resultado = executeSQL(sql, (medidor_id), fetch='all')
+
+    else:
+        sql = '''
+            SELECT id, leitura, data_leitura
+            FROM leituras
+            WHERE fk_medidor_id = %s
+            AND leitura = %s
+            OR data_leitura = %s
+        '''
+        resultado = executeSQL(sql, (medidor_id, pesquisa, f'%{pesquisa}%'), fetch='all')
+
+    return jsonify(resultado)
+
+
+@app.route('/leituras/cadastrar')
+def cad_leitura():
     dados = request.get_json()
 
-    leitura = dados['leitura']
-    data_leitura = dados['data_leitura'] or None
-    tipo = dados['tipo']
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        })
+
+    leitura = dados.get('leitura')
+    data_leitura = dados.get('data_leitura') or None
+    medidor_id = dados.get('medidor_id')
 
     sql = '''
         INSERT INTO leituras (leitura, data_leitura, fk_medidor_id)
@@ -276,38 +440,59 @@ def cad_leitura(medidor_id):
     '''
     executeSQL(sql, (leitura, data_leitura, medidor_id))
 
-    return ''
+    return jsonify({
+        'success': True,
+        'message': 'Cadastrado com sucesso.'
+    })
 
 
 @app.route('/leituras/atualizar', methods=['PUT'])
 def att_leitura():
     dados = request.get_json()
 
-    id = dados['id']
-    nome = dados['nome']
-    telefone = dados['telefone']
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        })
+
+    id = dados.get('id')
+    leitura = dados.get('leitura')
+    data_leitura = dados.get('data_leitura')
 
     sql = '''
         UPDATE medidores
-        SET nome = %s,
-            telefone = %s
+        SET leitura = %s,
+            data_leitura = %s
         WHERE id = %s
     '''
-    executeSQL(sql, (nome, telefone, id))
+    executeSQL(sql, (leitura, data_leitura, id))
 
-    return ''
+    return jsonify({
+        'success': True,
+        'message': 'Atualizado com sucesso.'
+    })
 
 
 @app.route('/leituras/deletar', methods=['DELETE'])
 def del_leituras():
     dados = request.get_json()
 
-    id = dados['id']
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        })
+
+    id = dados.get('id')
 
     sql = 'DELETE FROM medidores WHERE id = %s'
     executeSQL(sql, (id))
 
-    return ''
+    return jsonify({
+        'success': True,
+        'message': 'Deletado com sucesso.'
+    })
 
 
 if __name__ == '__main__':

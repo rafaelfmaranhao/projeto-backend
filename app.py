@@ -5,17 +5,20 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
 from flask_cors import CORS
-from datetime import datetime, timedelta
+from flask_mail import Mail, Message
+import random
+from datetime import datetime
 
 load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 app = Flask(__name__)
 CORS(app)
+
 app.config['JWT_SECRET_KEY'] = SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
-
 jwt = JWTManager(app)
+
 
 def connect_db():
     return pymysql.connect(
@@ -49,6 +52,59 @@ def execute_sql(sql, params=None, fetch=None):
             db.close()
         except Exception:
             pass
+
+
+@app.route('/recuperarSenha', methods=['POST'])
+def recupera_senha():
+
+    global codigo_rec_gerado
+
+    dados = request.get_json()
+    email = dados.get('email')
+
+    sql = '''
+        SELECT id
+        FROM usuarios
+        WHERE email = %s
+    '''
+
+    try:
+        resultado = execute_sql(sql, (email,), fetch='one')
+
+        if resultado:
+            app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+            app.config['MAIL_PORT'] = 587
+            app.config['MAIL_USE_TLS'] = True
+            app.config['MAIL_USERNAME'] = 'medidorplus@gmail.com'
+            app.config['MAIL_PASSWORD'] = 'ivbn sftt ikdr dxnj'
+            mail = Mail(app)
+            msg = Message(
+                subject='Recuperação de Senha',
+                sender='medidorplus@gmail.com',
+                recipients=[email]
+            )
+            codigo_rec_gerado = random.randint(100000, 999999)
+            nome = execute_sql('SELECT nome FROM usuarios WHERE email = %s', (email), fetch='one')['nome']
+
+            msg.body = f'Olá, {nome}! Seu código de recuperação é: {codigo_rec_gerado}.'
+            mail.send(msg)
+
+            return jsonify({
+                'success': True,
+                'message': 'E-mail de recuperação enviado'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'E-mail não encontrado'
+            }), 404
+
+    except Exception as err:
+        return jsonify({
+            'success': False,
+            'message': 'Erro ao recuperar senha',
+            'erro': str(err)
+        }), 500
 
 
 #################### Auth ####################
@@ -87,7 +143,7 @@ def login():
             }), 401
 
         senha_correta = check_password_hash(
-            usuario[3],
+            usuario['senha_hash'],
             senha
         )
 
@@ -98,7 +154,7 @@ def login():
             }), 401
 
         token = create_access_token(
-            identity=str(usuario[0])
+            identity=str(usuario['id'])
         )
 
         return jsonify({
@@ -108,17 +164,20 @@ def login():
             'token': token,
 
             'usuario': {
-                'id': usuario[0],
-                'nome': usuario[1],
-                'email': usuario[2]
+                'id': usuario['id'],
+                'nome': usuario['nome'],
+                'email': usuario['email']
             }
 
         }), 200
 
     except Exception as err:
+        import traceback
+        print(f"[ERRO LOGIN] {repr(err)}")
+        traceback.print_exc()  # imprime o traceback completo no console
         return jsonify({
             'success': False,
-            'message': str(err)
+            'message': 'Erro interno no servidor'
         }), 500
 
 

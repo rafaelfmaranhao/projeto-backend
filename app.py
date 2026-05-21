@@ -76,7 +76,7 @@ def recupera_senha():
             app.config['MAIL_PORT'] = 587
             app.config['MAIL_USE_TLS'] = True
             app.config['MAIL_USERNAME'] = 'medidorplus@gmail.com'
-            app.config['MAIL_PASSWORD'] = 'ivbn sftt ikdr dxnj'
+            app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
             mail = Mail(app)
             msg = Message(
                 subject='Recuperação de Senha',

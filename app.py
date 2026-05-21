@@ -4,16 +4,16 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 
 load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = SECRET_KEY
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
 
 jwt = JWTManager(app)
-
 
 def connect_db():
     return pymysql.connect(
@@ -25,7 +25,7 @@ def connect_db():
 
 def execute_sql(sql, params=None, fetch=None):
     db = connect_db()
-    cursor = db.cursor()
+    cursor = db.cursor(pymysql.cursors.DictCursor)
     try:
         resultado = cursor.execute(sql, params)
 
@@ -52,7 +52,6 @@ def execute_sql(sql, params=None, fetch=None):
 #################### Auth ####################
 @app.route('/login', methods=['POST'])
 def login():
-
     try:
         dados = request.get_json()
 
@@ -215,9 +214,9 @@ def pesq_imovel():
             SELECT id, nome 
             FROM imoveis
             WHERE fk_usuarios_id = %s
-            AND (id = %s OR nome = %s)
+            AND (nome LIKE %s OR id = %s)
         '''
-        resultado = execute_sql(sql, (usuario_id, pesquisa, f'%{pesquisa}%'), fetch='all')
+        resultado = execute_sql(sql, (usuario_id, f'%{pesquisa}%', pesquisa), fetch='all')
 
     return jsonify(resultado)
 
@@ -248,7 +247,7 @@ def cad_imovel():
     return jsonify({
         'success': True,
         'message': 'Cadastrado com sucesso',
-        'imoveis_id': resultado
+        'id': resultado
     })
 
 
@@ -329,7 +328,7 @@ def pesq_medidor():
             SELECT id, unidade, identificador, tipo
             FROM medidores
             WHERE fk_imoveis_id = %s
-            AND (unidade = %s OR identificador LIKE %s)
+            AND (unidade LIKE %s OR identificador LIKE %s)
         '''
         resultado = execute_sql(sql, (imoveis_id, pesquisa, f'%{pesquisa}%'), fetch='all')
 

@@ -54,59 +54,6 @@ def execute_sql(sql, params=None, fetch=None):
             pass
 
 
-@app.route('/recuperarSenha', methods=['POST'])
-def recupera_senha():
-
-    global codigo_rec_gerado
-
-    dados = request.get_json()
-    email = dados.get('email')
-
-    sql = '''
-        SELECT id
-        FROM usuarios
-        WHERE email = %s
-    '''
-
-    try:
-        resultado = execute_sql(sql, (email,), fetch='one')
-
-        if resultado:
-            app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-            app.config['MAIL_PORT'] = 587
-            app.config['MAIL_USE_TLS'] = True
-            app.config['MAIL_USERNAME'] = 'medidorplus@gmail.com'
-            app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-            mail = Mail(app)
-            msg = Message(
-                subject='Recuperação de Senha',
-                sender='medidorplus@gmail.com',
-                recipients=[email]
-            )
-            codigo_rec_gerado = random.randint(100000, 999999)
-            nome = execute_sql('SELECT nome FROM usuarios WHERE email = %s', (email), fetch='one')['nome']
-
-            msg.body = f'Olá, {nome}! Seu código de recuperação é: {codigo_rec_gerado}.'
-            mail.send(msg)
-
-            return jsonify({
-                'success': True,
-                'message': 'E-mail de recuperação enviado'
-            }), 200
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'E-mail não encontrado'
-            }), 404
-
-    except Exception as err:
-        return jsonify({
-            'success': False,
-            'message': 'Erro ao recuperar senha',
-            'erro': str(err)
-        }), 500
-
-
 #################### Auth ####################
 @app.route('/login', methods=['POST'])
 def login():
@@ -172,12 +119,10 @@ def login():
         }), 200
 
     except Exception as err:
-        import traceback
-        print(f"[ERRO LOGIN] {repr(err)}")
-        traceback.print_exc()  # imprime o traceback completo no console
         return jsonify({
             'success': False,
-            'message': 'Erro interno no servidor'
+            'message': 'Erro interno no servidor',
+            'error': str(err)
         }), 500
 
 
@@ -249,9 +194,115 @@ def cadastrar():
     except Exception as err:
         return jsonify({
             'success': False,
-            'message': str(err)
+            'message': 'Erro interno no servidor',
+            'error': str(err)
+        }), 500
+    
+
+@app.route('/recuperarSenha', methods=['POST'])
+def recuperar_senha():
+    global codigo_rec_gerado
+
+    dados = request.get_json()
+    email = dados.get('email')
+
+    sql = '''
+        SELECT id
+        FROM usuarios
+        WHERE email = %s
+    '''
+    try:
+        resultado = execute_sql(sql, (email,), fetch='one')
+
+        if resultado:
+            app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+            app.config['MAIL_PORT'] = 587
+            app.config['MAIL_USE_TLS'] = True
+            app.config['MAIL_USERNAME'] = 'medidorplus@gmail.com'
+            app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+            mail = Mail(app)
+            msg = Message(
+                subject='Recuperação de Senha',
+                sender='medidorplus@gmail.com',
+                recipients=[email]
+            )
+            nome = execute_sql('SELECT nome FROM usuarios WHERE email = %s', (email), fetch='one')['nome']
+            codigo_rec_gerado = random.randint(100000, 999999)
+
+            msg.body = f'Olá, {nome}! Seu código de recuperação é: {codigo_rec_gerado}.'
+            mail.send(msg)
+
+            return jsonify({
+                'success': True,
+                'message': 'E-mail de recuperação enviado',
+                'email': email
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'E-mail não encontrado'
+            }), 404
+
+    except Exception as err:
+        return jsonify({
+            'success': False,
+            'message': 'Erro ao recuperar senha',
+            'error': str(err)
+        }), 500
+
+
+@app.route('/validarCodigo', methods=['POST'])
+def validar_codigo():
+
+    dados = request.get_json()
+    codigo_rec_recebido = dados.get('codigo')
+
+    if codigo_rec_recebido != codigo_rec_gerado:
+        return jsonify({
+            'success': False,
+            'message': 'Código de recuperação inválido'
+        }), 400
+    
+    return jsonify({
+        'success': True,
+        'message': 'Código validado'
+    }), 200
+
+
+@app.route('/atualizarSenha', methods=['PUT'])
+def atualizar_senha():
+
+    dados = request.get_json()
+    email = dados.get('email')
+    novaSenha = dados.get('novaSenha')
+
+    if len(novaSenha) < 6:
+        return jsonify({
+            'success': False,
+            'message': 'A senha precisa ter pelo menos 6 caracteres'
         })
     
+    senha_hash = generate_password_hash(novaSenha)
+    
+    sql = '''
+        UPDATE usuarios
+        SET senha_hash = %s
+        WHERE email = %s
+    '''
+    try:
+        execute_sql(sql, (senha_hash, email,), fetch='one')
+        return jsonify({
+            'success': True,
+            'message': 'Senha atualizada com sucesso'
+        }), 200
+
+    except Exception as err:
+        return jsonify({
+            'success': False,
+            'message': 'Erro ao atualizar senha',
+            'erro': str(err)
+        })
+
 
 #################### Imóveis ####################
 @app.route('/imoveis', methods=['GET'])

@@ -429,7 +429,7 @@ def pesq_medidor():
 
     if pesquisa == '':
         sql = '''
-            SELECT id, unidade, identificador, tipo
+            SELECT id, unidade, identificador, tipo, valor_total
             FROM medidores
             WHERE fk_imoveis_id = %s
         '''
@@ -437,12 +437,12 @@ def pesq_medidor():
 
     else:
         sql = '''
-            SELECT id, unidade, identificador, tipo
+            SELECT id, unidade, identificador, tipo, valor_total
             FROM medidores
             WHERE fk_imoveis_id = %s
             AND (unidade LIKE %s OR identificador LIKE %s)
         '''
-        resultado = execute_sql(sql, (imoveis_id, pesquisa, f'%{pesquisa}%'), fetch='all')
+        resultado = execute_sql(sql, (imoveis_id, f'%{pesquisa}%', pesquisa), fetch='all')
 
     return jsonify(resultado)
 
@@ -461,16 +461,17 @@ def cad_medidor():
     unidade = dados.get('unidade')
     identificador = dados.get('identificador')
     tipo = dados.get('tipo')
+    valor_total = dados.get('valor_total')
     fk_imoveis_id = dados.get('fk_imoveis_id')
 
     if not unidade or not identificador or not tipo or not fk_imoveis_id:
         return jsonify({'success': False, 'message': 'unidade, identificador, tipo e fk_imoveis_id são obrigatórios'}), 400
 
     sql = '''
-        INSERT INTO medidores (unidade, identificador, tipo, fk_imoveis_id)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO medidores (unidade, identificador, tipo, valor_total, fk_imoveis_id)
+        VALUES (%s, %s, %s, %s, %s)
     '''
-    execute_sql(sql, (unidade, identificador, tipo, fk_imoveis_id))
+    execute_sql(sql, (unidade, identificador, tipo, valor_total, fk_imoveis_id))
 
     return jsonify({
         'success': True,
@@ -546,7 +547,7 @@ def pesq_leitura():
 
     if pesquisa == '':
         sql = '''
-            SELECT id, leitura, data_leitura
+            SELECT id, leitura, data_leitura, valor_total
             FROM leituras
             WHERE fk_medidor_id = %s
         '''
@@ -554,7 +555,7 @@ def pesq_leitura():
 
     else:
         sql = '''
-            SELECT id, leitura, data_leitura
+            SELECT id, leitura, data_leitura, valor_total
             FROM leituras
             WHERE fk_medidor_id = %s
             AND (leitura = %s OR data_leitura LIKE %s)
@@ -577,6 +578,7 @@ def cad_leitura():
 
     leitura = dados.get('leitura')
     data_leitura = dados.get('data_leitura') or None
+    valor_total = dados.get('valor_total')
     medidor_id = dados.get('medidor_id')
 
     if leitura is None or medidor_id is None:
@@ -589,10 +591,10 @@ def cad_leitura():
             return jsonify({'success': False, 'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
 
     sql = '''
-        INSERT INTO leituras (leitura, data_leitura, fk_medidor_id)
-        VALUES (%s, %s, %s)
+        INSERT INTO leituras (leitura, data_leitura, valor_total, fk_medidor_id)
+        VALUES (%s, %s, %s, %s)
     '''
-    execute_sql(sql, (leitura, data_leitura, medidor_id))
+    execute_sql(sql, (leitura, data_leitura, valor_total, medidor_id))
 
     return jsonify({
         'success': True,
@@ -614,6 +616,7 @@ def att_leitura():
     id = dados.get('id')
     leitura = dados.get('leitura')
     data_leitura = dados.get('data_leitura')
+    valor_total = dados.get('valor_total')
 
     if not id or leitura is None:
         return jsonify({'success': False, 'message': 'id e leitura são obrigatórios'}), 400
@@ -628,9 +631,10 @@ def att_leitura():
         UPDATE leituras
         SET leitura = %s,
             data_leitura = %s
+            valor_total = %s
         WHERE id = %s
     '''
-    execute_sql(sql, (leitura, data_leitura, id))
+    execute_sql(sql, (leitura, data_leitura, valor_total, id))
 
     return jsonify({
         'success': True,

@@ -23,7 +23,7 @@ jwt = JWTManager(app)
 def connect_db():
     return pymysql.connect(
         host=os.getenv('DB_HOST'),
-        database='medidor_plus',
+        database='medidorplus',
         user='root',
         password=os.getenv('DB_PASSWORD')
     )
@@ -330,8 +330,13 @@ def pesq_imovel():
         '''
         resultado = execute_sql(sql, (usuario_id, f'%{pesquisa}%', pesquisa), fetch='all')
 
-    return jsonify(resultado)
-
+    imoveis = []
+    for item in resultado:
+        imoveis.append({
+            'id': item[0],
+            'nome': item[1]
+        })
+    return jsonify(imoveis)
 
 @app.route('/imoveis/cadastrar', methods=['POST'])
 @jwt_required()
@@ -444,7 +449,15 @@ def pesq_medidor():
         '''
         resultado = execute_sql(sql, (imoveis_id, f'%{pesquisa}%', pesquisa), fetch='all')
 
-    return jsonify(resultado)
+    medidores = []
+    for item in resultado:
+        medidores.append({
+            'id':            item[0],
+            'unidade':       item[1],
+            'identificador': item[2],
+            'tipo':          item[3]
+        })
+    return jsonify(medidores)
 
 
 @app.route('/medidores/cadastrar', methods=['POST'])
@@ -562,7 +575,13 @@ def pesq_leitura():
         '''
         resultado = execute_sql(sql, (medidor_id, pesquisa, f'%{pesquisa}%'), fetch='all')
 
-    return jsonify(resultado)
+    leituras_ = []
+    for item in resultado:
+        leituras_.append({
+            'id': item[0],
+            'leitura': item[1],
+            'data-leitura': str(item[2])
+        })
 
 
 @app.route('/leituras/cadastrar', methods=['POST'])

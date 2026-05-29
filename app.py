@@ -3,13 +3,11 @@ import pymysql
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
-from dotenv import load_dotenv
 from flask_cors import CORS
 from flask_mail import Mail, Message
 import random
 from datetime import datetime
 
-load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 app = Flask(__name__)
@@ -407,7 +405,10 @@ def del_imovel():
     id = dados.get('id')
 
     if not id:
-        return jsonify({'success': False, 'message': 'id é obrigatório'}), 400
+        return jsonify({
+            'success': False, 
+            'message': 'id é obrigatório'
+        }), 400
 
     sql = 'DELETE FROM imoveis WHERE id = %s'
     execute_sql(sql, (id,))
@@ -525,7 +526,10 @@ def del_medidor():
     id = dados.get('id')
 
     if not id:
-        return jsonify({'success': False, 'message': 'id é obrigatório'}), 400
+        return jsonify({
+            'success': False, 
+            'message': 'id é obrigatório'
+        }), 400
 
     sql = 'DELETE FROM medidores WHERE id = %s'
     execute_sql(sql, (id,))
@@ -547,7 +551,7 @@ def pesq_leitura():
 
     if pesquisa == '':
         sql = '''
-            SELECT id, leitura, data_leitura, valor_total
+            SELECT id, leitura, date_format(data_leitura, '%%d/%%m/%%Y %%H:%%i') as 'data_leitura', valor_total
             FROM leituras
             WHERE fk_medidor_id = %s
         '''
@@ -555,13 +559,13 @@ def pesq_leitura():
 
     else:
         sql = '''
-            SELECT id, leitura, data_leitura, valor_total
+            SELECT id, leitura, date_format(data_leitura, '%%d/%%m/%%Y %%H:%%i') as 'data_leitura', valor_total
             FROM leituras
             WHERE fk_medidor_id = %s
-            AND (leitura = %s OR data_leitura LIKE %s)
+            AND (leitura = %s OR date_format(data_leitura, '%%d/%%m/%%Y %%H:%%i'))
         '''
         resultado = execute_sql(sql, (medidor_id, pesquisa, f'%{pesquisa}%'), fetch='all')
-
+    
     return jsonify(resultado)
 
 
@@ -586,9 +590,9 @@ def cad_leitura():
 
     if data_leitura:
         try:
-            datetime.fromisoformat(data_leitura)
+            data_leitura = datetime.strptime(data_leitura, '%d/%m/%Y %H:%M')
         except Exception:
-            return jsonify({'success': False, 'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({'success': False, 'message': 'Formato de data inválido. Use DD/MM/YYYY HH:MM'}), 400
 
     sql = '''
         INSERT INTO leituras (leitura, data_leitura, valor_total, fk_medidor_id)
@@ -623,9 +627,9 @@ def att_leitura():
 
     if data_leitura:
         try:
-            datetime.fromisoformat(data_leitura)
+            data_leitura = datetime.strptime(data_leitura, '%d/%m/%Y %H:%M')
         except Exception:
-            return jsonify({'success': False, 'message': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+            return jsonify({'success': False, 'message': 'Formato de data inválido. Use DD/MM/YYYY HH:MM'}), 400
 
     sql = '''
         UPDATE leituras
@@ -656,7 +660,10 @@ def del_leituras():
     id = dados.get('id')
 
     if not id:
-        return jsonify({'success': False, 'message': 'id é obrigatório'}), 400
+        return jsonify({
+            'success': False, 
+            'message': 'id é obrigatório'
+        }), 400
 
     sql = 'DELETE FROM leituras WHERE id = %s'
     execute_sql(sql, (id,))

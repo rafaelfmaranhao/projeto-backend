@@ -4,7 +4,7 @@ Documentação do backend Flask para o projeto `medidor_plus`.
 
 ## Visão geral
 
-Este backend fornece APIs para autenticação, cadastro de usuários, gerenciamento de imóveis, medidores e leituras. Ele utiliza:
+Este backend fornece APIs para autenticação, cadastro de usuários, CRUD de imóveis, medidores e leituras. Ele utiliza:
 
 - Flask
 - PyMySQL
@@ -183,7 +183,7 @@ Query params:
 Exemplo:
 
 ```http
-GET /medidores?id=2&q=kWh
+GET /medidores?id=2&q=Ap+102
 Authorization: Bearer <token>
 ```
 
@@ -193,9 +193,9 @@ Recebe JSON:
 
 ```json
 {
-  "unidade": "kWh",
-  "identificador": "MED-1234",
-  "tipo": "eletricidade",
+  "unidade": "Ap 102",
+  "identificador": "23456",
+  "tipo": "energia",
   "fk_imoveis_id": 2
 }
 ```
@@ -207,8 +207,8 @@ Recebe JSON:
 ```json
 {
   "id": 5,
-  "unidade": "m³",
-  "identificador": "MED-1234"
+  "unidade": "Ap 102",
+  "identificador": "23456"
 }
 ```
 

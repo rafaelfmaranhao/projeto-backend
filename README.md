@@ -242,7 +242,7 @@ Recebe JSON:
 ```json
 {
   "leitura": 123.45,
-  "data_leitura": "2026-05-17",
+  "data_leitura": "25/05/2026 12:00",
   "medidor_id": 7
 }
 ```
@@ -255,7 +255,7 @@ Recebe JSON:
 {
   "id": 10,
   "leitura": 124.00,
-  "data_leitura": "2026-05-18"
+  "data_leitura": "26/05/2026 18:30"
 }
 ```
 

@@ -87,10 +87,7 @@ def login():
                 'message': 'Email ou senha inválidos'
             }), 401
 
-        senha_correta = check_password_hash(
-            usuario['senha_hash'],
-            senha
-        )
+        senha_correta = check_password_hash(usuario['senha_hash'], senha)
 
         if not senha_correta:
             return jsonify({
@@ -98,9 +95,7 @@ def login():
                 'message': 'Email ou senha inválidos'
             }), 401
 
-        token = create_access_token(
-            identity=str(usuario['id'])
-        )
+        token = create_access_token(identity=str(usuario['id']))
 
         return jsonify({
             'success': True,
@@ -193,7 +188,7 @@ def cadastrar():
         return jsonify({
             'success': False,
             'message': 'Erro interno no servidor',
-            'error': str(err)
+            'erro': str(err)
         }), 500
     
 
@@ -224,7 +219,7 @@ def recuperar_senha():
                 sender='medidorplus@gmail.com',
                 recipients=[email]
             )
-            nome = execute_sql('SELECT nome FROM usuarios WHERE email = %s', (email), fetch='one')['nome']
+            nome = execute_sql('SELECT nome FROM usuarios WHERE email = %s', (email,), fetch='one')['nome']
             codigo_rec_gerado = random.randint(100000, 999999)
 
             msg.body = f'Olá, {nome}! Seu código de recuperação é: {codigo_rec_gerado}.'
@@ -245,7 +240,7 @@ def recuperar_senha():
         return jsonify({
             'success': False,
             'message': 'Erro ao recuperar senha',
-            'error': str(err)
+            'erro': str(err)
         }), 500
 
 
@@ -288,7 +283,7 @@ def atualizar_senha():
         WHERE email = %s
     '''
     try:
-        execute_sql(sql, (senha_hash, email,), fetch='one')
+        execute_sql(sql, (senha_hash, email,))
         return jsonify({
             'success': True,
             'message': 'Senha atualizada com sucesso'
@@ -299,7 +294,30 @@ def atualizar_senha():
             'success': False,
             'message': 'Erro ao atualizar senha',
             'erro': str(err)
-        })
+        }), 500
+
+
+#################### Dashboard ####################
+@app.route('/dashboard', methods=['GET'])
+@jwt_required()
+def dashboard():
+    usuario_id = get_jwt_identity()
+
+    sql = '''
+        SELECT SUM(m.valor_total) as 'valor_total'
+        FROM medidores m
+            INNER JOIN imoveis i
+            ON i.id = m.fk_imoveis_id
+        WHERE i.fk_usuarios_id = %s
+        AND m.tipo = %s;
+    '''
+    agua = execute_sql(sql, (usuario_id, 1), fetch='one')
+    energia = execute_sql(sql, (usuario_id, 2), fetch='one')
+
+    return jsonify({
+        'total_agua': agua,
+        'total_energia': energia
+    })
 
 
 #################### Imóveis ####################

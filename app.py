@@ -711,17 +711,23 @@ def historico():
         ORDER BY l.data_leitura DESC
         LIMIT 5
     '''
-    resultado = execute_sql(sql, (usuario_id,), fetch='all')
+    
+    db = connect_db()
+    cursor = db.cursor(pymysql.cursors.DictCursor) # ← retorna dicionário
+    cursor.execute(sql, (usuario_id,))
+    resultado = cursor.fetchall()
+    cursor.close()
+    db.close()
 
     historico = []
     for item in resultado:
         historico.append({
-            'id':           item[0],
-            'leitura':      item[1],
-            'data_leitura': str(item[2]),
-            'tipo':         item[3],
-            'unidade':      item[4],
-            'imovel':       item[5],
+            'id':           item['id'],
+            'leitura':      item['leitura'],
+            'data_leitura': str(item['data_leitura']),
+            'tipo':         item['tipo'],
+            'unidade':      item['unidade'],
+            'imovel':       item['imovel'],
         })
 
     return jsonify(historico)

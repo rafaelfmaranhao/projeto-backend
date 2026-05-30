@@ -691,6 +691,40 @@ def del_leituras():
         'message': 'Deletado com sucesso.'
     })
 
+@app.route('/dashboard/historico', methods=['GET'])
+@jwt_required()
+def historico():
+    usuario_id = get_jwt_identity()
+
+    sql = '''
+        SELECT 
+            l.id,
+            l.leitura,
+            l.data_leitura,
+            m.tipo,
+            m.unidade,
+            i.nome AS imovel
+        FROM leituras l
+        JOIN medidores m ON l.fk_medidor_id = m.id
+        JOIN imoveis i ON m.fk_imoveis_id = i.id
+        WHERE i.fk_usuarios_id = %s
+        ORDER BY l.data_leitura DESC
+        LIMIT 5
+    '''
+    resultado = execute_sql(sql, (usuario_id,), fetch='all')
+
+    historico = []
+    for item in resultado:
+        historico.append({
+            'id':           item[0],
+            'leitura':      item[1],
+            'data_leitura': str(item[2]),
+            'tipo':         item[3],
+            'unidade':      item[4],
+            'imovel':       item[5],
+        })
+
+    return jsonify(historico)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

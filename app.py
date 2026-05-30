@@ -315,8 +315,8 @@ def dashboard():
     energia = execute_sql(sql, (usuario_id, 2), fetch='one')
 
     return jsonify({
-        'total_agua': agua,
-        'total_energia': energia
+        'total_agua': agua.get('valor_total'),
+        'total_energia': energia.get('valor_total')
     })
 
 

@@ -319,6 +319,36 @@ def dashboard():
         'total_energia': energia.get('valor_total')
     })
 
+@app.route('/dashboard/historico', methods=['GET'])
+@jwt_required()
+def historico():
+    usuario_id = get_jwt_identity()
+
+    sql = '''
+        SELECT 
+            l.id,
+            l.leitura,
+            date_format(l.data_leitura, '%%d/%%m/%%Y %%H:%%i') as 'data_leitura',
+            m.tipo,
+            m.unidade,
+            i.nome AS imovel
+        FROM leituras l
+        JOIN medidores m ON l.fk_medidor_id = m.id
+        JOIN imoveis i ON m.fk_imoveis_id = i.id
+        WHERE i.fk_usuarios_id = %s
+        ORDER BY l.data_leitura DESC
+        LIMIT 5
+    '''
+    resultado = execute_sql(sql, (usuario_id,), fetch='all')
+    
+    if not resultado:
+        return jsonify({
+            'success': False,
+            'message': 'Histórico limpo'
+        }), 500
+
+    return jsonify(resultado)
+
 
 #################### Imóveis ####################
 @app.route('/imoveis', methods=['GET'])
@@ -484,7 +514,10 @@ def cad_medidor():
     fk_imoveis_id = dados.get('fk_imoveis_id')
 
     if not unidade or not identificador or not tipo or not fk_imoveis_id:
-        return jsonify({'success': False, 'message': 'unidade, identificador, tipo e fk_imoveis_id são obrigatórios'}), 400
+        return jsonify({
+            'success': False, 
+            'message': 'unidade, identificador, tipo e fk_imoveis_id são obrigatórios'
+        }), 400
 
     sql = '''
         INSERT INTO medidores (unidade, identificador, tipo, valor_total, fk_imoveis_id)
@@ -691,46 +724,6 @@ def del_leituras():
         'message': 'Deletado com sucesso.'
     })
 
-@app.route('/dashboard/historico', methods=['GET'])
-@jwt_required()
-def historico():
-    usuario_id = get_jwt_identity()
-
-    sql = '''
-        SELECT 
-            l.id,
-            l.leitura,
-            l.data_leitura,
-            m.tipo,
-            m.unidade,
-            i.nome AS imovel
-        FROM leituras l
-        JOIN medidores m ON l.fk_medidor_id = m.id
-        JOIN imoveis i ON m.fk_imoveis_id = i.id
-        WHERE i.fk_usuarios_id = %s
-        ORDER BY l.data_leitura DESC
-        LIMIT 5
-    '''
-    
-    db = connect_db()
-    cursor = db.cursor(pymysql.cursors.DictCursor) # ← retorna dicionário
-    cursor.execute(sql, (usuario_id,))
-    resultado = cursor.fetchall()
-    cursor.close()
-    db.close()
-
-    historico = []
-    for item in resultado:
-        historico.append({
-            'id':           item['id'],
-            'leitura':      item['leitura'],
-            'data_leitura': str(item['data_leitura']),
-            'tipo':         item['tipo'],
-            'unidade':      item['unidade'],
-            'imovel':       item['imovel'],
-        })
-
-    return jsonify(historico)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

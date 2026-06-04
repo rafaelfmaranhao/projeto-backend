@@ -768,10 +768,66 @@ def relatorio_opcoes():
     return jsonify(list(dados.values()))
 
 
-# @app.route('/relatorios/consumoPeriodo', methods=['GET'])
-# @jwt_required()
-# def consumo_periodo():
+@app.route('/relatorios/consumoPeriodo', methods=['GET'])
+@jwt_required()
+def consumo_periodo():
+    imovel = request.args.get('imovel')
+    medidor = request.args.get('medidor')
+    data_inicial = request.args.get('data_inicial')
+    data_final = request.args.get('data_final')
+
+    if not data_inicial or not data_final:
+        return jsonify({'success': False, 'message': 'Data inicial e final são obrigatórias'})
     
+    try:
+        data_inicial = datetime.strptime(data_inicial, '%d/%m/%Y')
+        data_final = datetime.strptime(data_final, '%d/%m/%Y')
+    except Exception:
+        return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY'}), 400
+
+    if not imovel:
+        sql = '''
+            SELECT SUM(l.leitura) as 'total_leitura'
+            FROM leituras l
+                INNER JOIN medidores m
+                ON m.id = l.fk_medidor_id
+                INNER JOIN imoveis i
+                ON i.id = m.fk_imoveis_id
+            WHERE l.data_leitura BETWEEN %s AND %s
+        '''
+        resultado = execute_sql(sql, (data_inicial, data_final), fetch='all')
+
+        return jsonify(resultado)
+
+    elif not medidor:
+        sql = '''
+            SELECT SUM(l.leitura) as 'total_leitura'
+            FROM leituras l
+                INNER JOIN medidores m
+                ON m.id = l.fk_medidor_id
+                INNER JOIN imoveis i
+                ON i.id = m.fk_imoveis_id
+            WHERE l.data_leitura BETWEEN %s AND %s
+            AND i.id = %s
+        '''
+        resultado = execute_sql(sql, (data_inicial, data_final, imovel), fetch='all')
+
+        return jsonify(resultado)
+    
+    sql = '''
+        SELECT SUM(l.leitura) as 'total_leitura'
+        FROM leituras l
+            INNER JOIN medidores m
+            ON m.id = l.fk_medidor_id
+            INNER JOIN imoveis i
+            ON i.id = m.fk_imoveis_id
+        WHERE l.data_leitura BETWEEN %s AND %s
+        AND i.id = %s
+        AND m.id = %s
+    '''
+    resultado = execute_sql(sql, (data_inicial, data_final, imovel, medidor), fetch='all')
+
+    return jsonify(resultado)
 
 
 if __name__ == '__main__':

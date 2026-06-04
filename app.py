@@ -391,7 +391,7 @@ def cad_imovel():
         }), 400
 
     nome = dados.get('nome')
-    fk_usuarios_id = get_jwt_identity()
+    usuario_id = get_jwt_identity()
 
     if not nome:
         return jsonify({'success': False, 'message': 'Nome é obrigatório'}), 400
@@ -400,7 +400,7 @@ def cad_imovel():
         INSERT INTO imoveis (nome, fk_usuarios_id)
         VALUES (%s, %s);
     '''
-    resultado = execute_sql(sql, (nome, fk_usuarios_id))
+    resultado = execute_sql(sql, (nome, usuario_id,))
 
     return jsonify({
         'success': True,
@@ -632,18 +632,18 @@ def cad_leitura():
         }), 400
 
     leitura = dados.get('leitura')
-    data_leitura = dados.get('data_leitura') or None
+    data_leitura = dados.get('data_leitura')
     valor_total = dados.get('valor_total')
     medidor_id = dados.get('medidor_id')
 
-    if leitura is None or medidor_id is None:
-        return jsonify({'success': False, 'message': 'leitura e medidor_id são obrigatórios'}), 400
+    if not leitura or not medidor_id:
+        return jsonify({'success': False, 'message': 'Todos os dados são obrigatórios'}), 400
 
     if data_leitura:
         try:
             data_leitura = datetime.strptime(data_leitura, '%d/%m/%Y %H:%M')
         except Exception:
-            return jsonify({'success': False, 'message': 'Formato de data inválido. Use DD/MM/YYYY HH:MM'}), 400
+            return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY HH:MM'}), 400
 
     sql = '''
         INSERT INTO leituras (leitura, data_leitura, valor_total, fk_medidor_id)
@@ -673,14 +673,14 @@ def att_leitura():
     data_leitura = dados.get('data_leitura')
     valor_total = dados.get('valor_total')
 
-    if not id or leitura is None:
+    if not id or not leitura:
         return jsonify({'success': False, 'message': 'id e leitura são obrigatórios'}), 400
 
     if data_leitura:
         try:
             data_leitura = datetime.strptime(data_leitura, '%d/%m/%Y %H:%M')
         except Exception:
-            return jsonify({'success': False, 'message': 'Formato de data inválido. Use DD/MM/YYYY HH:MM'}), 400
+            return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY HH:MM'}), 400
 
     sql = '''
         UPDATE leituras
@@ -723,6 +723,55 @@ def del_leituras():
         'success': True,
         'message': 'Deletado com sucesso.'
     })
+
+
+#################### Relatórios ####################
+@app.route('/relatorios/opcoes', methods=['GET'])
+@jwt_required()
+def relatorio_opcoes():
+    usuario_id = get_jwt_identity()
+
+    sql = '''
+        SELECT 
+            i.id as 'imovel_id',
+            i.nome as 'imovel_nome', 
+            m.id as 'medidor_id',
+            m.unidade,
+            m.tipo
+        FROM imoveis i
+            LEFT JOIN medidores m
+            ON i.id = m.fk_imoveis_id
+        WHERE i.fk_usuarios_id = %s
+        ORDER BY i.nome, m.unidade
+    '''
+    resultado = execute_sql(sql, (usuario_id,), fetch='all')
+
+    dados = {}
+
+    for res in resultado:
+        imovel_id = res['imovel_id']
+
+        if imovel_id not in dados:
+            dados[imovel_id] = {
+                'id': imovel_id,
+                'nome': res['imovel_nome'],
+                'medidores': []
+            }
+
+        if res['medidor_id']:
+            dados[imovel_id]['medidores'].append({
+                'id': res['medidor_id'],
+                'unidade': res['unidade'],
+                'tipo': res['tipo']
+            })
+
+    return jsonify(list(dados.values()))
+
+
+# @app.route('/relatorios/consumoPeriodo', methods=['GET'])
+# @jwt_required()
+# def consumo_periodo():
+    
 
 
 if __name__ == '__main__':

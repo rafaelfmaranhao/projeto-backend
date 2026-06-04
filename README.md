@@ -276,7 +276,7 @@ Recebe JSON:
 - O backend usa JWT para identificar o usuário atual em rotas protegidas.
 - Em `POST /imoveis/cadastrar`, o `fk_usuarios_id` não precisa ser enviado pelo front; ele é extraído do token.
 - Os campos obrigatórios recebem status `400` quando faltam.
-- A data de leitura deve estar em formato ISO `YYYY-MM-DD`.
+- A data hora de leitura deve estar em formato D/M/Y 24 horas `dd/mm/YYYY HH:MM`.
 - O banco é MySQL e o código usa `pymysql`.
 
 ## Como testar

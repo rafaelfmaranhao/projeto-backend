@@ -350,6 +350,202 @@ def historico():
     return jsonify(resultado)
 
 
+#################### Relatórios ####################
+@app.route('/relatorios/opcoes', methods=['GET'])
+@jwt_required()
+def relatorio_opcoes():
+    usuario_id = get_jwt_identity()
+
+    sql = '''
+        SELECT 
+            i.id as 'imovel_id',
+            i.nome as 'imovel_nome', 
+            m.id as 'medidor_id',
+            m.unidade,
+            m.tipo
+        FROM imoveis i
+            LEFT JOIN medidores m
+            ON i.id = m.fk_imoveis_id
+        WHERE i.fk_usuarios_id = %s
+        ORDER BY i.nome, m.unidade
+    '''
+    resultado = execute_sql(sql, (usuario_id,), fetch='all')
+
+    dados = {}
+
+    for res in resultado:
+        imovel_id = res['imovel_id']
+
+        if imovel_id not in dados:
+            dados[imovel_id] = {
+                'id': imovel_id,
+                'nome': res['imovel_nome'],
+                'medidores': []
+            }
+
+        if res['medidor_id']:
+            dados[imovel_id]['medidores'].append({
+                'id': res['medidor_id'],
+                'unidade': res['unidade'],
+                'tipo': res['tipo']
+            })
+
+    return jsonify(list(dados.values()))
+
+
+@app.route('/relatorios/consumoPeriodo', methods=['GET'])
+@jwt_required()
+def consumo_periodo():
+    imovel = request.args.get('imovel')
+    medidor = request.args.get('medidor')
+    data_inicial = request.args.get('data_inicial')
+    data_final = request.args.get('data_final')
+
+    if not data_inicial or not data_final:
+        return jsonify({'success': False, 'message': 'Data inicial e final são obrigatórias'})
+    
+    try:
+        data_inicial = datetime.strptime(data_inicial, '%d/%m/%Y')
+        data_final = datetime.strptime(data_final, '%d/%m/%Y')
+    except Exception:
+        return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY'}), 400
+
+    if not imovel:
+        sql = '''
+            SELECT SUM(l.leitura) as 'total_leitura'
+            FROM leituras l
+                INNER JOIN medidores m
+                ON m.id = l.fk_medidor_id
+                INNER JOIN imoveis i
+                ON i.id = m.fk_imoveis_id
+            WHERE l.data_leitura BETWEEN %s AND %s
+            AND m.tipo = %s
+        '''
+        agua = execute_sql(sql, (data_inicial, data_final, 1), fetch='one')
+        energia = execute_sql(sql, (data_inicial, data_final, 2), fetch='one')
+
+        return jsonify({
+            'consumo_agua': agua.get('total_leitura'),
+            'consumo_energia': energia.get('total_leitura')
+        })
+
+    elif not medidor:
+        sql = '''
+            SELECT SUM(l.leitura) as 'total_leitura'
+            FROM leituras l
+                INNER JOIN medidores m
+                ON m.id = l.fk_medidor_id
+                INNER JOIN imoveis i
+                ON i.id = m.fk_imoveis_id
+            WHERE l.data_leitura BETWEEN %s AND %s
+            AND i.id = %s
+            AND m.tipo = %s
+        '''
+        agua = execute_sql(sql, (data_inicial, data_final, imovel, 1), fetch='one')
+        energia = execute_sql(sql, (data_inicial, data_final, imovel, 2), fetch='one')
+
+        return jsonify({
+            'consumo_agua': agua.get('total_leitura'),
+            'consumo_energia': energia.get('total_leitura')
+        })
+    
+    sql = '''
+        SELECT SUM(l.leitura) as 'total_leitura'
+        FROM leituras l
+            INNER JOIN medidores m
+            ON m.id = l.fk_medidor_id
+            INNER JOIN imoveis i
+            ON i.id = m.fk_imoveis_id
+        WHERE l.data_leitura BETWEEN %s AND %s
+        AND i.id = %s
+        AND m.id = %s
+        AND m.tipo = %s
+    '''
+    agua = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 1), fetch='one')
+    energia = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 2), fetch='one')
+
+    return jsonify({
+        'consumo_agua': agua.get('total_leitura'),
+        'consumo_energia': energia.get('total_leitura')
+    })
+
+
+@app.route('/relatorios/totalPeriodo', methods=['GET'])
+def valor_total_periodo():
+    imovel = request.args.get('imovel')
+    medidor = request.args.get('medidor')
+    data_inicial = request.args.get('data_inicial')
+    data_final = request.args.get('data_final')
+
+    if not data_inicial or not data_final:
+        return jsonify({'success': False, 'message': 'Data inicial e final são obrigatórias'})
+    
+    try:
+        data_inicial = datetime.strptime(data_inicial, '%d/%m/%Y')
+        data_final = datetime.strptime(data_final, '%d/%m/%Y')
+    except Exception:
+        return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY'}), 400
+    
+    if not imovel:
+        sql = '''
+            SELECT SUM(l.valor_total) as 'valor_total'
+            FROM leituras l
+                INNER JOIN medidores m
+                ON m.id = l.fk_medidor_id
+                INNER JOIN imoveis i
+                ON i.id = m.fk_imoveis_id
+            WHERE l.data_leitura BETWEEN %s AND %s
+            AND m.tipo = %s
+        '''
+        agua = execute_sql(sql, (data_inicial, data_final, 1), fetch='one')
+        energia = execute_sql(sql, (data_inicial, data_final, 2), fetch='one')
+
+        return jsonify({
+            'total_agua': agua.get('valor_total'),
+            'total_energia': energia.get('valor_total')
+        })
+
+    elif not medidor:
+        sql = '''
+            SELECT SUM(l.valor_total) as 'valor_total'
+            FROM leituras l
+                INNER JOIN medidores m
+                ON m.id = l.fk_medidor_id
+                INNER JOIN imoveis i
+                ON i.id = m.fk_imoveis_id
+            WHERE l.data_leitura BETWEEN %s AND %s
+            AND i.id = %s
+            AND m.tipo = %s
+        '''
+        agua = execute_sql(sql, (data_inicial, data_final, imovel, 1), fetch='one')
+        energia = execute_sql(sql, (data_inicial, data_final, imovel, 2), fetch='one')
+
+        return jsonify({
+            'total_agua': agua.get('valor_total'),
+            'total_energia': energia.get('valor_total')
+        })
+    
+    sql = '''
+        SELECT SUM(l.valor_total) as 'valor_total'
+        FROM leituras l
+            INNER JOIN medidores m
+            ON m.id = l.fk_medidor_id
+            INNER JOIN imoveis i
+            ON i.id = m.fk_imoveis_id
+        WHERE l.data_leitura BETWEEN %s AND %s
+        AND i.id = %s
+        AND m.id = %s
+        AND m.tipo = %s
+    '''
+    agua = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 1), fetch='one')
+    energia = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 2), fetch='one')
+
+    return jsonify({
+        'total_agua': agua.get('valor_total'),
+        'total_energia': energia.get('valor_total')
+    })
+
+
 #################### Imóveis ####################
 @app.route('/imoveis', methods=['GET'])
 @jwt_required()
@@ -723,145 +919,6 @@ def del_leituras():
         'success': True,
         'message': 'Deletado com sucesso.'
     })
-
-
-#################### Relatórios ####################
-@app.route('/relatorios/opcoes', methods=['GET'])
-@jwt_required()
-def relatorio_opcoes():
-    usuario_id = get_jwt_identity()
-
-    sql = '''
-        SELECT 
-            i.id as 'imovel_id',
-            i.nome as 'imovel_nome', 
-            m.id as 'medidor_id',
-            m.unidade,
-            m.tipo
-        FROM imoveis i
-            LEFT JOIN medidores m
-            ON i.id = m.fk_imoveis_id
-        WHERE i.fk_usuarios_id = %s
-        ORDER BY i.nome, m.unidade
-    '''
-    resultado = execute_sql(sql, (usuario_id,), fetch='all')
-
-    dados = {}
-
-    for res in resultado:
-        imovel_id = res['imovel_id']
-
-        if imovel_id not in dados:
-            dados[imovel_id] = {
-                'id': imovel_id,
-                'nome': res['imovel_nome'],
-                'medidores': []
-            }
-
-        if res['medidor_id']:
-            dados[imovel_id]['medidores'].append({
-                'id': res['medidor_id'],
-                'unidade': res['unidade'],
-                'tipo': res['tipo']
-            })
-
-    return jsonify(list(dados.values()))
-
-
-@app.route('/relatorios/consumoPeriodo', methods=['GET'])
-@jwt_required()
-def consumo_periodo():
-    imovel = request.args.get('imovel')
-    medidor = request.args.get('medidor')
-    data_inicial = request.args.get('data_inicial')
-    data_final = request.args.get('data_final')
-
-    if not data_inicial or not data_final:
-        return jsonify({'success': False, 'message': 'Data inicial e final são obrigatórias'})
-    
-    try:
-        data_inicial = datetime.strptime(data_inicial, '%d/%m/%Y')
-        data_final = datetime.strptime(data_final, '%d/%m/%Y')
-    except Exception:
-        return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY'}), 400
-
-    if not imovel:
-        sql = '''
-            SELECT SUM(l.leitura) as 'total_leitura'
-            FROM leituras l
-                INNER JOIN medidores m
-                ON m.id = l.fk_medidor_id
-                INNER JOIN imoveis i
-                ON i.id = m.fk_imoveis_id
-            WHERE l.data_leitura BETWEEN %s AND %s
-            AND m.tipo = %s
-        '''
-        agua = execute_sql(sql, (data_inicial, data_final, 1), fetch='one')
-        energia = execute_sql(sql, (data_inicial, data_final, 2), fetch='one')
-
-        return jsonify({
-            'consumo_agua': agua.get('total_leitura'),
-            'consumo_energia': energia.get('total_leitura')
-        })
-
-    elif not medidor:
-        sql = '''
-            SELECT SUM(l.leitura) as 'total_leitura'
-            FROM leituras l
-                INNER JOIN medidores m
-                ON m.id = l.fk_medidor_id
-                INNER JOIN imoveis i
-                ON i.id = m.fk_imoveis_id
-            WHERE l.data_leitura BETWEEN %s AND %s
-            AND i.id = %s
-            AND m.tipo = %s
-        '''
-        agua = execute_sql(sql, (data_inicial, data_final, imovel, 1), fetch='one')
-        energia = execute_sql(sql, (data_inicial, data_final, imovel, 2), fetch='one')
-
-        return jsonify({
-            'consumo_agua': agua.get('total_leitura'),
-            'consumo_energia': energia.get('total_leitura')
-        })
-    
-    sql = '''
-        SELECT SUM(l.leitura) as 'total_leitura'
-        FROM leituras l
-            INNER JOIN medidores m
-            ON m.id = l.fk_medidor_id
-            INNER JOIN imoveis i
-            ON i.id = m.fk_imoveis_id
-        WHERE l.data_leitura BETWEEN %s AND %s
-        AND i.id = %s
-        AND m.id = %s
-        AND m.tipo = %s
-    '''
-    agua = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 1), fetch='one')
-    energia = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 2), fetch='one')
-
-    return jsonify({
-        'consumo_agua': agua.get('total_leitura'),
-        'consumo_energia': energia.get('total_leitura')
-    })
-
-
-@app.route('/relatorios/totalPeriodo', methods=['GET'])
-def valor_total_periodo():
-    imovel = request.args.get('imovel')
-    medidor = request.args.get('medidor')
-    data_inicial = request.args.get('data_inicial')
-    data_final = request.args.get('data_final')
-
-    if not data_inicial or not data_final:
-        return jsonify({'success': False, 'message': 'Data inicial e final são obrigatórias'})
-    
-    try:
-        data_inicial = datetime.strptime(data_inicial, '%d/%m/%Y')
-        data_final = datetime.strptime(data_final, '%d/%m/%Y')
-    except Exception:
-        return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY'}), 400
-    
-    
 
 
 if __name__ == '__main__':

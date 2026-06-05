@@ -1,6 +1,6 @@
 # Backend Medidor Plus
 
-Documentação do backend Flask para o projeto `medidor_plus`.
+Documentação do backend Flask para o projeto `Medidor Plus`.
 
 ## Visão geral
 
@@ -16,8 +16,9 @@ Este backend fornece APIs para autenticação, cadastro de usuários, CRUD de im
 
 1. Crie um ambiente virtual Python.
 2. Instale as dependências em `requirements.txt`.
-3. Crie um arquivo `.env` com as variáveis de ambiente necessárias.
-4. Execute o backend com:
+3. Importe o banco de dados MySQL 8.0 `dump.sql`.
+4. Crie um arquivo `.env` com as variáveis de ambiente necessárias.
+5. Execute o backend com:
 
 ```bash
 python app.py

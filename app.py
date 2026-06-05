@@ -794,10 +794,15 @@ def consumo_periodo():
                 INNER JOIN imoveis i
                 ON i.id = m.fk_imoveis_id
             WHERE l.data_leitura BETWEEN %s AND %s
+            AND m.tipo = %s
         '''
-        resultado = execute_sql(sql, (data_inicial, data_final), fetch='all')
+        agua = execute_sql(sql, (data_inicial, data_final, 1), fetch='one')
+        energia = execute_sql(sql, (data_inicial, data_final, 2), fetch='one')
 
-        return jsonify(resultado)
+        return jsonify({
+            'consumo_agua': agua.get('total_leitura'),
+            'consumo_energia': energia.get('total_leitura')
+        })
 
     elif not medidor:
         sql = '''
@@ -809,10 +814,15 @@ def consumo_periodo():
                 ON i.id = m.fk_imoveis_id
             WHERE l.data_leitura BETWEEN %s AND %s
             AND i.id = %s
+            AND m.tipo = %s
         '''
-        resultado = execute_sql(sql, (data_inicial, data_final, imovel), fetch='all')
+        agua = execute_sql(sql, (data_inicial, data_final, imovel, 1), fetch='one')
+        energia = execute_sql(sql, (data_inicial, data_final, imovel, 2), fetch='one')
 
-        return jsonify(resultado)
+        return jsonify({
+            'consumo_agua': agua.get('total_leitura'),
+            'consumo_energia': energia.get('total_leitura')
+        })
     
     sql = '''
         SELECT SUM(l.leitura) as 'total_leitura'
@@ -824,10 +834,34 @@ def consumo_periodo():
         WHERE l.data_leitura BETWEEN %s AND %s
         AND i.id = %s
         AND m.id = %s
+        AND m.tipo = %s
     '''
-    resultado = execute_sql(sql, (data_inicial, data_final, imovel, medidor), fetch='all')
+    agua = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 1), fetch='one')
+    energia = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 2), fetch='one')
 
-    return jsonify(resultado)
+    return jsonify({
+        'consumo_agua': agua.get('total_leitura'),
+        'consumo_energia': energia.get('total_leitura')
+    })
+
+
+@app.route('/relatorios/totalPeriodo', methods=['GET'])
+def valor_total_periodo():
+    imovel = request.args.get('imovel')
+    medidor = request.args.get('medidor')
+    data_inicial = request.args.get('data_inicial')
+    data_final = request.args.get('data_final')
+
+    if not data_inicial or not data_final:
+        return jsonify({'success': False, 'message': 'Data inicial e final são obrigatórias'})
+    
+    try:
+        data_inicial = datetime.strptime(data_inicial, '%d/%m/%Y')
+        data_final = datetime.strptime(data_final, '%d/%m/%Y')
+    except Exception:
+        return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY'}), 400
+    
+    
 
 
 if __name__ == '__main__':

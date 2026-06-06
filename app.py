@@ -350,6 +350,383 @@ def historico():
     return jsonify(resultado)
 
 
+#################### Imóveis ####################
+@app.route('/imoveis', methods=['GET'])
+@jwt_required()
+def pesq_imovel():
+    usuario_id = get_jwt_identity()
+    pesquisa = request.args.get('q', '')
+
+    if pesquisa == '':
+        sql = '''
+            SELECT id, nome 
+            FROM imoveis
+            WHERE fk_usuarios_id = %s
+        '''
+        resultado = execute_sql(sql, (usuario_id,), fetch='all')
+        
+        return jsonify(resultado)
+    
+    else:
+        sql = '''
+            SELECT id, nome 
+            FROM imoveis
+            WHERE fk_usuarios_id = %s
+            AND (nome LIKE %s OR id = %s)
+        '''
+        resultado = execute_sql(sql, (usuario_id, f'%{pesquisa}%', pesquisa), fetch='all')
+
+        return jsonify(resultado)
+
+
+@app.route('/imoveis/cadastrar', methods=['POST'])
+@jwt_required()
+def cad_imovel():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        }), 400
+
+    nome = dados.get('nome')
+    usuario_id = get_jwt_identity()
+
+    if not nome:
+        return jsonify({'success': False, 'message': 'Nome é obrigatório'}), 400
+
+    sql = '''
+        INSERT INTO imoveis (nome, fk_usuarios_id)
+        VALUES (%s, %s);
+    '''
+    resultado = execute_sql(sql, (nome, usuario_id,))
+
+    return jsonify({
+        'success': True,
+        'message': 'Cadastrado com sucesso',
+        'id': resultado
+    })
+
+
+@app.route('/imoveis/atualizar', methods=['PUT'])
+@jwt_required()
+def att_imovel():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        }), 400
+
+    id = dados.get('id')
+    nome = dados.get('nome')
+
+    if not id or not nome:
+        return jsonify({'success': False, 'message': 'id e nome são obrigatórios'}), 400
+
+    sql = '''
+        UPDATE imoveis
+        SET nome = %s
+        WHERE id = %s
+    '''
+    execute_sql(sql, (nome, id))
+
+    return jsonify({
+        'success': True,
+        'message': 'Atualizado com sucesso'
+    })
+
+
+@app.route('/imoveis/deletar', methods=['DELETE'])
+@jwt_required()
+def del_imovel():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        }), 400
+
+    id = dados.get('id')
+
+    if not id:
+        return jsonify({
+            'success': False, 
+            'message': 'id é obrigatório'
+        }), 400
+
+    sql = 'DELETE FROM imoveis WHERE id = %s'
+    execute_sql(sql, (id,))
+
+    return jsonify({
+        'success': True,
+        'message': 'Deletado com sucesso.'
+    })
+
+
+#################### Medidores ####################
+@app.route('/medidores', methods=['GET'])
+@jwt_required()
+def pesq_medidor():
+    imoveis_id = request.args.get('id')
+    pesquisa = request.args.get('q', '')
+
+    if pesquisa == '':
+        sql = '''
+            SELECT id, unidade, identificador, tipo, valor_total
+            FROM medidores
+            WHERE fk_imoveis_id = %s
+        '''
+        resultado = execute_sql(sql, (imoveis_id,), fetch='all')
+
+        return jsonify(resultado)
+
+    else:
+        sql = '''
+            SELECT id, unidade, identificador, tipo, valor_total
+            FROM medidores
+            WHERE fk_imoveis_id = %s
+            AND (unidade LIKE %s OR identificador LIKE %s)
+        '''
+        resultado = execute_sql(sql, (imoveis_id, f'%{pesquisa}%', pesquisa), fetch='all')
+        
+        return jsonify(resultado)
+
+
+@app.route('/medidores/cadastrar', methods=['POST'])
+@jwt_required()
+def cad_medidor():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        }), 400
+
+    unidade = dados.get('unidade')
+    identificador = dados.get('identificador')
+    tipo = dados.get('tipo')
+    valor_total = dados.get('valor_total')
+    fk_imoveis_id = dados.get('fk_imoveis_id')
+
+    if not unidade or not identificador or not tipo or not fk_imoveis_id:
+        return jsonify({
+            'success': False, 
+            'message': 'unidade, identificador, tipo e fk_imoveis_id são obrigatórios'
+        }), 400
+
+    sql = '''
+        INSERT INTO medidores (unidade, identificador, tipo, valor_total, fk_imoveis_id)
+        VALUES (%s, %s, %s, %s, %s)
+    '''
+    execute_sql(sql, (unidade, identificador, tipo, valor_total, fk_imoveis_id))
+
+    return jsonify({
+        'success': True,
+        'message': 'Cadastrado com sucesso.'
+    })
+
+
+@app.route('/medidores/atualizar', methods=['PUT'])
+@jwt_required()
+def att_medidor():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        }), 400
+
+    id = dados.get('id')
+    unidade = dados.get('unidade')
+    identificador = dados.get('identificador')
+
+    if not id or not unidade or not identificador:
+        return jsonify({'success': False, 'message': 'id, unidade e identificador são obrigatórios'}), 400
+
+    sql = '''
+        UPDATE medidores
+        SET unidade = %s,
+            identificador = %s
+        WHERE id = %s
+    '''
+    execute_sql(sql, (unidade, identificador, id))
+
+    return jsonify({
+        'success': True,
+        'message': 'Atualizado com sucesso.'
+    })
+
+
+@app.route('/medidores/deletar', methods=['DELETE'])
+@jwt_required()
+def del_medidor():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        }), 400
+
+    id = dados.get('id')
+
+    if not id:
+        return jsonify({
+            'success': False, 
+            'message': 'id é obrigatório'
+        }), 400
+
+    sql = 'DELETE FROM medidores WHERE id = %s'
+    execute_sql(sql, (id,))
+
+    return jsonify({
+        'success': True,
+        'message': 'Deletado com sucesso.'
+    })
+
+
+#################### Leituras ####################
+@app.route('/leituras', methods=['GET'])
+@jwt_required()
+def pesq_leitura():
+    medidor_id = request.args.get('id')
+    pesquisa = request.args.get('q', '')
+
+    if pesquisa == '':
+        sql = '''
+            SELECT id, leitura, date_format(data_leitura, '%%d/%%m/%%Y %%H:%%i') as 'data_leitura', valor_total
+            FROM leituras l
+            WHERE fk_medidor_id = %s
+            ORDER BY l.data_leitura DESC
+        '''
+        resultado = execute_sql(sql, (medidor_id,), fetch='all')
+
+        return jsonify(resultado)
+
+    else:
+        sql = '''
+            SELECT id, leitura, date_format(data_leitura, '%%d/%%m/%%Y %%H:%%i') as 'data_leitura', valor_total
+            FROM leituras l
+            WHERE fk_medidor_id = %s
+            AND (leitura LIKE %s OR date_format(data_leitura, '%%d/%%m/%%Y %%H:%%i') LIKE %s)
+            ORDER BY l.data_leitura DESC
+        '''
+        resultado = execute_sql(sql, (medidor_id, f'%{pesquisa}%', f'%{pesquisa}%',), fetch='all')
+
+        return jsonify(resultado)
+
+
+@app.route('/leituras/cadastrar', methods=['POST'])
+@jwt_required()
+def cad_leitura():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        }), 400
+
+    leitura = dados.get('leitura')
+    data_leitura = dados.get('data_leitura')
+    valor_total = dados.get('valor_total')
+    medidor_id = dados.get('medidor_id')
+
+    if not leitura or not medidor_id:
+        return jsonify({'success': False, 'message': 'Todos os dados são obrigatórios'}), 400
+
+    if data_leitura:
+        try:
+            data_leitura = datetime.strptime(data_leitura, '%d/%m/%Y %H:%M')
+        except Exception:
+            return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY HH:MM'}), 400
+
+    sql = '''
+        INSERT INTO leituras (leitura, data_leitura, valor_total, fk_medidor_id)
+        VALUES (%s, %s, %s, %s)
+    '''
+    execute_sql(sql, (leitura, data_leitura, valor_total, medidor_id))
+
+    return jsonify({
+        'success': True,
+        'message': 'Cadastrado com sucesso.'
+    })
+
+
+@app.route('/leituras/atualizar', methods=['PUT'])
+@jwt_required()
+def att_leitura():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        }), 400
+
+    id = dados.get('id')
+    leitura = dados.get('leitura')
+    data_leitura = dados.get('data_leitura')
+    valor_total = dados.get('valor_total')
+
+    if not id or not leitura:
+        return jsonify({'success': False, 'message': 'id e leitura são obrigatórios'}), 400
+
+    if data_leitura:
+        try:
+            data_leitura = datetime.strptime(data_leitura, '%d/%m/%Y %H:%M')
+        except Exception:
+            return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY HH:MM'}), 400
+
+    sql = '''
+        UPDATE leituras
+        SET leitura = %s,
+            data_leitura = %s
+            valor_total = %s
+        WHERE id = %s
+    '''
+    execute_sql(sql, (leitura, data_leitura, valor_total, id))
+
+    return jsonify({
+        'success': True,
+        'message': 'Atualizado com sucesso.'
+    })
+
+
+@app.route('/leituras/deletar', methods=['DELETE'])
+@jwt_required()
+def del_leituras():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({
+            'success': False,
+            'message': 'JSON Inválido'
+        }), 400
+
+    id = dados.get('id')
+
+    if not id:
+        return jsonify({
+            'success': False, 
+            'message': 'id é obrigatório'
+        }), 400
+
+    sql = 'DELETE FROM leituras WHERE id = %s'
+    execute_sql(sql, (id,))
+
+    return jsonify({
+        'success': True,
+        'message': 'Deletado com sucesso.'
+    })
+
+
 #################### Relatórios ####################
 @app.route('/relatorios/opcoes', methods=['GET'])
 @jwt_required()
@@ -543,381 +920,6 @@ def valor_total_periodo():
     return jsonify({
         'total_agua': agua.get('valor_total'),
         'total_energia': energia.get('valor_total')
-    })
-
-
-#################### Imóveis ####################
-@app.route('/imoveis', methods=['GET'])
-@jwt_required()
-def pesq_imovel():
-    usuario_id = get_jwt_identity()
-    pesquisa = request.args.get('q', '')
-
-    resultado = None
-
-    if pesquisa == '':
-        sql = '''
-            SELECT id, nome 
-            FROM imoveis
-            WHERE fk_usuarios_id = %s
-        '''
-        resultado = execute_sql(sql, (usuario_id,), fetch='all')
-    
-    else:
-        sql = '''
-            SELECT id, nome 
-            FROM imoveis
-            WHERE fk_usuarios_id = %s
-            AND (nome LIKE %s OR id = %s)
-        '''
-        resultado = execute_sql(sql, (usuario_id, f'%{pesquisa}%', pesquisa), fetch='all')
-
-    return jsonify(resultado)
-
-
-@app.route('/imoveis/cadastrar', methods=['POST'])
-@jwt_required()
-def cad_imovel():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON Inválido'
-        }), 400
-
-    nome = dados.get('nome')
-    usuario_id = get_jwt_identity()
-
-    if not nome:
-        return jsonify({'success': False, 'message': 'Nome é obrigatório'}), 400
-
-    sql = '''
-        INSERT INTO imoveis (nome, fk_usuarios_id)
-        VALUES (%s, %s);
-    '''
-    resultado = execute_sql(sql, (nome, usuario_id,))
-
-    return jsonify({
-        'success': True,
-        'message': 'Cadastrado com sucesso',
-        'id': resultado
-    })
-
-
-@app.route('/imoveis/atualizar', methods=['PUT'])
-@jwt_required()
-def att_imovel():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON Inválido'
-        }), 400
-
-    id = dados.get('id')
-    nome = dados.get('nome')
-
-    if not id or not nome:
-        return jsonify({'success': False, 'message': 'id e nome são obrigatórios'}), 400
-
-    sql = '''
-        UPDATE imoveis
-        SET nome = %s
-        WHERE id = %s
-    '''
-    execute_sql(sql, (nome, id))
-
-    return jsonify({
-        'success': True,
-        'message': 'Atualizado com sucesso'
-    })
-
-
-@app.route('/imoveis/deletar', methods=['DELETE'])
-@jwt_required()
-def del_imovel():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON Inválido'
-        }), 400
-
-    id = dados.get('id')
-
-    if not id:
-        return jsonify({
-            'success': False, 
-            'message': 'id é obrigatório'
-        }), 400
-
-    sql = 'DELETE FROM imoveis WHERE id = %s'
-    execute_sql(sql, (id,))
-
-    return jsonify({
-        'success': True,
-        'message': 'Deletado com sucesso.'
-    })
-
-
-#################### Medidores ####################
-@app.route('/medidores', methods=['GET'])
-@jwt_required()
-def pesq_medidor():
-    imoveis_id = request.args.get('id')
-    pesquisa = request.args.get('q', '')
-
-    resultado = None
-
-    if pesquisa == '':
-        sql = '''
-            SELECT id, unidade, identificador, tipo, valor_total
-            FROM medidores
-            WHERE fk_imoveis_id = %s
-        '''
-        resultado = execute_sql(sql, (imoveis_id,), fetch='all')
-
-    else:
-        sql = '''
-            SELECT id, unidade, identificador, tipo, valor_total
-            FROM medidores
-            WHERE fk_imoveis_id = %s
-            AND (unidade LIKE %s OR identificador LIKE %s)
-        '''
-        resultado = execute_sql(sql, (imoveis_id, f'%{pesquisa}%', pesquisa), fetch='all')
-
-    return jsonify(resultado)
-
-
-@app.route('/medidores/cadastrar', methods=['POST'])
-@jwt_required()
-def cad_medidor():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON Inválido'
-        }), 400
-
-    unidade = dados.get('unidade')
-    identificador = dados.get('identificador')
-    tipo = dados.get('tipo')
-    valor_total = dados.get('valor_total')
-    fk_imoveis_id = dados.get('fk_imoveis_id')
-
-    if not unidade or not identificador or not tipo or not fk_imoveis_id:
-        return jsonify({
-            'success': False, 
-            'message': 'unidade, identificador, tipo e fk_imoveis_id são obrigatórios'
-        }), 400
-
-    sql = '''
-        INSERT INTO medidores (unidade, identificador, tipo, valor_total, fk_imoveis_id)
-        VALUES (%s, %s, %s, %s, %s)
-    '''
-    execute_sql(sql, (unidade, identificador, tipo, valor_total, fk_imoveis_id))
-
-    return jsonify({
-        'success': True,
-        'message': 'Cadastrado com sucesso.'
-    })
-
-
-@app.route('/medidores/atualizar', methods=['PUT'])
-@jwt_required()
-def att_medidor():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON Inválido'
-        }), 400
-
-    id = dados.get('id')
-    unidade = dados.get('unidade')
-    identificador = dados.get('identificador')
-
-    if not id or not unidade or not identificador:
-        return jsonify({'success': False, 'message': 'id, unidade e identificador são obrigatórios'}), 400
-
-    sql = '''
-        UPDATE medidores
-        SET unidade = %s,
-            identificador = %s
-        WHERE id = %s
-    '''
-    execute_sql(sql, (unidade, identificador, id))
-
-    return jsonify({
-        'success': True,
-        'message': 'Atualizado com sucesso.'
-    })
-
-
-@app.route('/medidores/deletar', methods=['DELETE'])
-@jwt_required()
-def del_medidor():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON Inválido'
-        }), 400
-
-    id = dados.get('id')
-
-    if not id:
-        return jsonify({
-            'success': False, 
-            'message': 'id é obrigatório'
-        }), 400
-
-    sql = 'DELETE FROM medidores WHERE id = %s'
-    execute_sql(sql, (id,))
-
-    return jsonify({
-        'success': True,
-        'message': 'Deletado com sucesso.'
-    })
-
-
-#################### Leituras ####################
-@app.route('/leituras', methods=['GET'])
-@jwt_required()
-def pesq_leitura():
-    medidor_id = request.args.get('id')
-    pesquisa = request.args.get('q', '')
-
-    resultado = None
-
-    if pesquisa == '':
-        sql = '''
-            SELECT id, leitura, date_format(data_leitura, '%%d/%%m/%%Y %%H:%%i') as 'data_leitura', valor_total
-            FROM leituras
-            WHERE fk_medidor_id = %s
-        '''
-        resultado = execute_sql(sql, (medidor_id,), fetch='all')
-
-    else:
-        sql = '''
-            SELECT id, leitura, date_format(data_leitura, '%%d/%%m/%%Y %%H:%%i') as 'data_leitura', valor_total
-            FROM leituras
-            WHERE fk_medidor_id = %s
-            AND (leitura = %s OR date_format(data_leitura, '%%d/%%m/%%Y %%H:%%i'))
-        '''
-        resultado = execute_sql(sql, (medidor_id, pesquisa, f'%{pesquisa}%'), fetch='all')
-    
-    return jsonify(resultado)
-
-
-@app.route('/leituras/cadastrar', methods=['POST'])
-@jwt_required()
-def cad_leitura():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON Inválido'
-        }), 400
-
-    leitura = dados.get('leitura')
-    data_leitura = dados.get('data_leitura')
-    valor_total = dados.get('valor_total')
-    medidor_id = dados.get('medidor_id')
-
-    if not leitura or not medidor_id:
-        return jsonify({'success': False, 'message': 'Todos os dados são obrigatórios'}), 400
-
-    if data_leitura:
-        try:
-            data_leitura = datetime.strptime(data_leitura, '%d/%m/%Y %H:%M')
-        except Exception:
-            return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY HH:MM'}), 400
-
-    sql = '''
-        INSERT INTO leituras (leitura, data_leitura, valor_total, fk_medidor_id)
-        VALUES (%s, %s, %s, %s)
-    '''
-    execute_sql(sql, (leitura, data_leitura, valor_total, medidor_id))
-
-    return jsonify({
-        'success': True,
-        'message': 'Cadastrado com sucesso.'
-    })
-
-
-@app.route('/leituras/atualizar', methods=['PUT'])
-@jwt_required()
-def att_leitura():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON Inválido'
-        }), 400
-
-    id = dados.get('id')
-    leitura = dados.get('leitura')
-    data_leitura = dados.get('data_leitura')
-    valor_total = dados.get('valor_total')
-
-    if not id or not leitura:
-        return jsonify({'success': False, 'message': 'id e leitura são obrigatórios'}), 400
-
-    if data_leitura:
-        try:
-            data_leitura = datetime.strptime(data_leitura, '%d/%m/%Y %H:%M')
-        except Exception:
-            return jsonify({'success': False, 'message': 'Formato de data inválido. Use dd/mm/YYYY HH:MM'}), 400
-
-    sql = '''
-        UPDATE leituras
-        SET leitura = %s,
-            data_leitura = %s
-            valor_total = %s
-        WHERE id = %s
-    '''
-    execute_sql(sql, (leitura, data_leitura, valor_total, id))
-
-    return jsonify({
-        'success': True,
-        'message': 'Atualizado com sucesso.'
-    })
-
-
-@app.route('/leituras/deletar', methods=['DELETE'])
-@jwt_required()
-def del_leituras():
-    dados = request.get_json()
-
-    if not dados:
-        return jsonify({
-            'success': False,
-            'message': 'JSON Inválido'
-        }), 400
-
-    id = dados.get('id')
-
-    if not id:
-        return jsonify({
-            'success': False, 
-            'message': 'id é obrigatório'
-        }), 400
-
-    sql = 'DELETE FROM leituras WHERE id = %s'
-    execute_sql(sql, (id,))
-
-    return jsonify({
-        'success': True,
-        'message': 'Deletado com sucesso.'
     })
 
 

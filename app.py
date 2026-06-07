@@ -6,16 +6,15 @@ import os
 from flask_cors import CORS
 from flask_mail import Mail, Message
 import random
-from datetime import datetime
+import datetime
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 app = Flask(__name__)
-CORS(app)
-
 app.config['JWT_SECRET_KEY'] = SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
 jwt = JWTManager(app)
+CORS(app)
 
 
 def connect_db():
@@ -108,7 +107,6 @@ def login():
                 'nome': usuario['nome'],
                 'email': usuario['email']
             }
-
         }), 200
 
     except Exception as err:
@@ -424,7 +422,7 @@ def att_imovel():
     nome = dados.get('nome')
 
     if not id or not nome:
-        return jsonify({'success': False, 'message': 'id e nome são obrigatórios'}), 400
+        return jsonify({'success': False, 'message': 'Nome é obrigatório'}), 400
 
     sql = '''
         UPDATE imoveis
@@ -510,7 +508,6 @@ def cad_medidor():
     unidade = dados.get('unidade')
     identificador = dados.get('identificador')
     tipo = dados.get('tipo')
-    valor_total = dados.get('valor_total')
     fk_imoveis_id = dados.get('fk_imoveis_id')
 
     if not unidade or not identificador or not tipo or not fk_imoveis_id:
@@ -520,10 +517,10 @@ def cad_medidor():
         }), 400
 
     sql = '''
-        INSERT INTO medidores (unidade, identificador, tipo, valor_total, fk_imoveis_id)
+        INSERT INTO medidores (unidade, identificador, tipo, fk_imoveis_id)
         VALUES (%s, %s, %s, %s, %s)
     '''
-    execute_sql(sql, (unidade, identificador, tipo, valor_total, fk_imoveis_id))
+    execute_sql(sql, (unidade, identificador, tipo, fk_imoveis_id))
 
     return jsonify({
         'success': True,
@@ -638,7 +635,7 @@ def cad_leitura():
     valor_total = dados.get('valor_total')
     medidor_id = dados.get('medidor_id')
 
-    if not leitura or not medidor_id:
+    if not leitura or not data_leitura or not valor_total or not medidor_id:
         return jsonify({'success': False, 'message': 'Todos os dados são obrigatórios'}), 400
 
     if data_leitura:
@@ -675,8 +672,8 @@ def att_leitura():
     data_leitura = dados.get('data_leitura')
     valor_total = dados.get('valor_total')
 
-    if not id or not leitura:
-        return jsonify({'success': False, 'message': 'id e leitura são obrigatórios'}), 400
+    if not id or not leitura or not data_leitura or not valor_total:
+        return jsonify({'success': False, 'message': 'Todos os dados são obrigatórios'}), 400
 
     if data_leitura:
         try:

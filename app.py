@@ -6,7 +6,7 @@ import os
 from flask_cors import CORS
 from flask_mail import Mail, Message
 import random
-import datetime
+from datetime import datetime
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 
@@ -518,9 +518,9 @@ def cad_medidor():
 
     sql = '''
         INSERT INTO medidores (unidade, identificador, tipo, fk_imoveis_id)
-        VALUES (%s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s)
     '''
-    execute_sql(sql, (unidade, identificador, tipo, fk_imoveis_id))
+    execute_sql(sql, (unidade, identificador, tipo, fk_imoveis_id,))
 
     return jsonify({
         'success': True,
@@ -684,7 +684,7 @@ def att_leitura():
     sql = '''
         UPDATE leituras
         SET leitura = %s,
-            data_leitura = %s
+            data_leitura = %s,
             valor_total = %s
         WHERE id = %s
     '''
@@ -770,6 +770,8 @@ def relatorio_opcoes():
 @app.route('/relatorios/consumoPeriodo', methods=['GET'])
 @jwt_required()
 def consumo_periodo():
+    usuario_id = get_jwt_identity()
+
     imovel = request.args.get('imovel')
     medidor = request.args.get('medidor')
     data_inicial = request.args.get('data_inicial')
@@ -792,11 +794,12 @@ def consumo_periodo():
                 ON m.id = l.fk_medidor_id
                 INNER JOIN imoveis i
                 ON i.id = m.fk_imoveis_id
-            WHERE l.data_leitura BETWEEN %s AND %s
+            WHERE i.fk_usuarios_id = %s
+            AND l.data_leitura BETWEEN %s AND %s
             AND m.tipo = %s
         '''
-        agua = execute_sql(sql, (data_inicial, data_final, 1), fetch='one')
-        energia = execute_sql(sql, (data_inicial, data_final, 2), fetch='one')
+        agua = execute_sql(sql, (usuario_id, data_inicial, data_final, 1), fetch='one')
+        energia = execute_sql(sql, (usuario_id, data_inicial, data_final, 2), fetch='one')
 
         return jsonify({
             'consumo_agua': agua.get('total_leitura'),
@@ -811,18 +814,19 @@ def consumo_periodo():
                 ON m.id = l.fk_medidor_id
                 INNER JOIN imoveis i
                 ON i.id = m.fk_imoveis_id
-            WHERE l.data_leitura BETWEEN %s AND %s
+            WHERE i.fk_usuarios_id = %s
+            AND l.data_leitura BETWEEN %s AND %s
             AND i.id = %s
             AND m.tipo = %s
         '''
-        agua = execute_sql(sql, (data_inicial, data_final, imovel, 1), fetch='one')
-        energia = execute_sql(sql, (data_inicial, data_final, imovel, 2), fetch='one')
+        agua = execute_sql(sql, (usuario_id, data_inicial, data_final, imovel, 1), fetch='one')
+        energia = execute_sql(sql, (usuario_id, data_inicial, data_final, imovel, 2), fetch='one')
 
         return jsonify({
             'consumo_agua': agua.get('total_leitura'),
             'consumo_energia': energia.get('total_leitura')
         })
-    
+
     sql = '''
         SELECT SUM(l.leitura) as 'total_leitura'
         FROM leituras l
@@ -830,13 +834,14 @@ def consumo_periodo():
             ON m.id = l.fk_medidor_id
             INNER JOIN imoveis i
             ON i.id = m.fk_imoveis_id
-        WHERE l.data_leitura BETWEEN %s AND %s
+        WHERE i.fk_usuarios_id = %s
+        AND l.data_leitura BETWEEN %s AND %s
         AND i.id = %s
         AND m.id = %s
         AND m.tipo = %s
     '''
-    agua = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 1), fetch='one')
-    energia = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 2), fetch='one')
+    agua = execute_sql(sql, (usuario_id, data_inicial, data_final, imovel, medidor, 1), fetch='one')
+    energia = execute_sql(sql, (usuario_id, data_inicial, data_final, imovel, medidor, 2), fetch='one')
 
     return jsonify({
         'consumo_agua': agua.get('total_leitura'),
@@ -845,7 +850,10 @@ def consumo_periodo():
 
 
 @app.route('/relatorios/totalPeriodo', methods=['GET'])
+@jwt_required()
 def valor_total_periodo():
+    usuario_id = get_jwt_identity()
+
     imovel = request.args.get('imovel')
     medidor = request.args.get('medidor')
     data_inicial = request.args.get('data_inicial')
@@ -868,11 +876,12 @@ def valor_total_periodo():
                 ON m.id = l.fk_medidor_id
                 INNER JOIN imoveis i
                 ON i.id = m.fk_imoveis_id
-            WHERE l.data_leitura BETWEEN %s AND %s
+            WHERE i.fk_usuarios_id = %s
+            AND l.data_leitura BETWEEN %s AND %s
             AND m.tipo = %s
         '''
-        agua = execute_sql(sql, (data_inicial, data_final, 1), fetch='one')
-        energia = execute_sql(sql, (data_inicial, data_final, 2), fetch='one')
+        agua = execute_sql(sql, (usuario_id, data_inicial, data_final, 1), fetch='one')
+        energia = execute_sql(sql, (usuario_id, data_inicial, data_final, 2), fetch='one')
 
         return jsonify({
             'total_agua': agua.get('valor_total'),
@@ -887,12 +896,13 @@ def valor_total_periodo():
                 ON m.id = l.fk_medidor_id
                 INNER JOIN imoveis i
                 ON i.id = m.fk_imoveis_id
-            WHERE l.data_leitura BETWEEN %s AND %s
+            WHERE i.fk_usuarios_id = %s
+            AND l.data_leitura BETWEEN %s AND %s
             AND i.id = %s
             AND m.tipo = %s
         '''
-        agua = execute_sql(sql, (data_inicial, data_final, imovel, 1), fetch='one')
-        energia = execute_sql(sql, (data_inicial, data_final, imovel, 2), fetch='one')
+        agua = execute_sql(sql, (usuario_id, data_inicial, data_final, imovel, 1), fetch='one')
+        energia = execute_sql(sql, (usuario_id, data_inicial, data_final, imovel, 2), fetch='one')
 
         return jsonify({
             'total_agua': agua.get('valor_total'),
@@ -906,13 +916,14 @@ def valor_total_periodo():
             ON m.id = l.fk_medidor_id
             INNER JOIN imoveis i
             ON i.id = m.fk_imoveis_id
-        WHERE l.data_leitura BETWEEN %s AND %s
+        WHERE i.fk_usuarios_id = %s
+        AND l.data_leitura BETWEEN %s AND %s
         AND i.id = %s
         AND m.id = %s
         AND m.tipo = %s
     '''
-    agua = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 1), fetch='one')
-    energia = execute_sql(sql, (data_inicial, data_final, imovel, medidor, 2), fetch='one')
+    agua = execute_sql(sql, (usuario_id, data_inicial, data_final, imovel, medidor, 1), fetch='one')
+    energia = execute_sql(sql, (usuario_id, data_inicial, data_final, imovel, medidor, 2), fetch='one')
 
     return jsonify({
         'total_agua': agua.get('valor_total'),
